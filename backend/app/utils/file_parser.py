@@ -1,17 +1,27 @@
 """
-Advanced File parsing utilities for vector formats (DXF, SVG, AI, PDF)
+Advanced File parsing utilities for vector formats (DXF, SVG, AI, PDF, EPS)
 """
 
 import logging
 import math
 import re
+import subprocess
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import ezdxf
 from ezdxf import bbox
 
 logger = logging.getLogger(__name__)
+
+
+class FileFormatError(Exception):
+    """Raised when a file format cannot be parsed or converted."""
+
+    def __init__(self, message: str, format_type: str = "", details: Dict[str, Any] | None = None):
+        super().__init__(message)
+        self.format_type = format_type
+        self.details = details or {}
 
 def parse_dxf(file_path: str) -> Dict[str, Any]:
     """
@@ -142,15 +152,44 @@ def parse_dxf(file_path: str) -> Dict[str, Any]:
         "validation": validate_geometry(msp)
     }
 
+def _read_svg_source(file_path: str) -> bytes:
+    """Read an SVG file as bytes, normalizing UTF-16 exports to UTF-8.
+
+    Some tools (notably Corel Draw 2021) export SVG as UTF-16 with a BOM. The
+    Python ElementTree parser will fail on those because it expects the XML
+    prolog's encoding declaration to match the byte content. Detect the UTF-16
+    BOM, decode to unicode, and re-serialise as UTF-8 with an updated prolog.
+    """
+    with open(file_path, "rb") as fh:
+        raw = fh.read()
+    # BOM-sniff first (most reliable)
+    if raw.startswith(b"\xff\xfe") or raw.startswith(b"\xfe\xff"):
+        text = raw.decode("utf-16")
+    elif raw[:4] in (b"\x00<\x00?", b"<\x00?\x00"):  # UTF-16 without BOM
+        text = raw.decode("utf-16-be" if raw[:4] == b"\x00<\x00?" else "utf-16-le")
+    else:
+        return raw
+    # Replace any prolog encoding=... with utf-8 so ET doesn't get confused
+    text = re.sub(
+        r'(<\?xml[^?]*?)encoding\s*=\s*"[^"]*"',
+        r'\1encoding="utf-8"',
+        text,
+        count=1,
+        flags=re.IGNORECASE,
+    )
+    return text.encode("utf-8")
+
+
 def parse_svg(file_path: str) -> Dict[str, Any]:
     """
     Improved SVG parser using xml parsing and path data analysis.
+    Handles UTF-8 and UTF-16-encoded SVGs (e.g. Corel Draw exports).
     """
     import xml.etree.ElementTree as ET
 
     try:
-        tree = ET.parse(file_path)
-        root = tree.getroot()
+        svg_bytes = _read_svg_source(file_path)
+        root = ET.fromstring(svg_bytes)
     except Exception as e:
         logger.error(f"Failed to parse SVG {file_path}: {e}")
         raise ValueError(f"Invalid SVG file: {e}")
@@ -158,19 +197,54 @@ def parse_svg(file_path: str) -> Dict[str, Any]:
     # SVG namespaces
     ns = {'svg': 'http://www.w3.org/2000/svg'}
 
-    # Extract dimensions
-    width_mm, height_mm = 0.0, 0.0
+    # Parse dimensions with unit awareness.
+    # SVG supports: mm, cm, in, pt, pc, px, %, or no unit (treated as "user unit").
+    # We derive physical size (mm) from width/height attrs, and compute the
+    # scale factor between user-units (viewBox coords) and mm so cut_length
+    # / area are in real-world units regardless of how the file was authored.
+    def _to_mm(val_str: str) -> Optional[float]:
+        if not val_str:
+            return None
+        m = re.match(r"\s*([+-]?\d*\.?\d+)\s*([a-zA-Z%]*)\s*$", val_str)
+        if not m:
+            return None
+        num = float(m.group(1))
+        unit = m.group(2).lower()
+        factors = {
+            "mm": 1.0, "cm": 10.0, "in": 25.4, "pt": 25.4 / 72.0, "pc": 25.4 / 6.0,
+            "px": 25.4 / 96.0, "": 25.4 / 96.0,  # unitless assumed 96 DPI (SVG spec)
+        }
+        if unit == "%":
+            return None
+        return num * factors.get(unit, 25.4 / 96.0)
+
+    w_attr = root.get('width', '')
+    h_attr = root.get('height', '')
     viewbox = root.get('viewBox')
+    vb_w = vb_h = None
     if viewbox:
-        _, _, w, h = map(float, viewbox.replace(',', ' ').split())
-        width_mm, height_mm = w, h
+        try:
+            parts = [float(p) for p in viewbox.replace(',', ' ').split()]
+            if len(parts) == 4:
+                vb_w, vb_h = parts[2], parts[3]
+        except ValueError:
+            pass
+
+    width_mm = _to_mm(w_attr)
+    height_mm = _to_mm(h_attr)
+
+    # If width/height were unitless or missing, fall back to viewBox treated as px
+    if width_mm is None:
+        width_mm = (vb_w or 0.0) * (25.4 / 96.0)
+    if height_mm is None:
+        height_mm = (vb_h or 0.0) * (25.4 / 96.0)
+
+    # Scale factor: 1 user-unit == scale mm. Used to convert path lengths.
+    if vb_w and width_mm:
+        scale_mm_per_unit = width_mm / vb_w
     else:
-        # Fallback to width/height attrs
-        w_str = root.get('width', '0')
-        h_str = root.get('height', '0')
-        # Simple extraction of numbers, ignoring units (assuming pixels/mm)
-        width_mm = float(re.findall(r"[-+]?\d*\.\d+|\d+", w_str)[0])
-        height_mm = float(re.findall(r"[-+]?\d*\.\d+|\d+", h_str)[0])
+        # No viewBox: width/height attrs are already the user-unit range
+        scale_mm_per_unit = 1.0 if not w_attr or not _to_mm(w_attr) else (width_mm / (float(re.findall(r"[-+]?\d*\.?\d+", w_attr)[0]) or 1.0))
 
     cut_length = 0.0
 
@@ -254,6 +328,33 @@ def parse_svg(file_path: str) -> Dict[str, Any]:
         x2, y2 = float(line.get('x2', 0)), float(line.get('y2', 0))
         cut_length += math.sqrt((x2-x1)**2 + (y2-y1)**2)
 
+    def _polyline_length(points_attr: str, closed: bool) -> float:
+        coords = [float(n) for n in re.findall(r"[-+]?\d*\.?\d+", points_attr)]
+        length = 0.0
+        for i in range(0, len(coords) - 3, 2):
+            dx = coords[i + 2] - coords[i]
+            dy = coords[i + 3] - coords[i + 1]
+            length += math.sqrt(dx * dx + dy * dy)
+        if closed and len(coords) >= 4:
+            dx = coords[0] - coords[-2]
+            dy = coords[1] - coords[-1]
+            length += math.sqrt(dx * dx + dy * dy)
+        return length
+
+    for poly in root.iter('{http://www.w3.org/2000/svg}polyline'):
+        cut_length += _polyline_length(poly.get('points', ''), closed=False)
+    for poly in root.iter('{http://www.w3.org/2000/svg}polygon'):
+        cut_length += _polyline_length(poly.get('points', ''), closed=True)
+
+    for el in root.iter('{http://www.w3.org/2000/svg}ellipse'):
+        rx = float(el.get('rx', 0))
+        ry = float(el.get('ry', 0))
+        # Ramanujan's approximation for ellipse perimeter
+        h = ((rx - ry) ** 2) / ((rx + ry) ** 2) if (rx + ry) else 0
+        cut_length += math.pi * (rx + ry) * (1 + (3 * h) / (10 + math.sqrt(4 - 3 * h)))
+
+    # cut_length was accumulated in viewBox user-units; convert to mm
+    cut_length_mm = cut_length * scale_mm_per_unit
     area_cm2 = (width_mm * height_mm) / 100
 
     return {
@@ -261,15 +362,17 @@ def parse_svg(file_path: str) -> Dict[str, Any]:
         "width_mm": round(width_mm, 2),
         "height_mm": round(height_mm, 2),
         "area_cm2": round(area_cm2, 2),
-        "cut_length_mm": round(cut_length, 2),
+        "cut_length_mm": round(cut_length_mm, 2),
         "validation": {"is_valid": True, "warnings": []}
     }
 
 def parse_pdf(file_path: str) -> Dict[str, Any]:
     """
-    Extract basic info from PDF. Proper vector extraction from PDF is complex
-    and usually requires tools like inkscape or ghostscript.
-    Here we provide a placeholder that estimates based on page size.
+    Extract dimensions and estimate cut length from a PDF file.
+
+    Uses pypdf for page dimensions and attempts to extract vector stream
+    operators (m/l/c/v/y) from the content stream to estimate cut length.
+    Falls back to a perimeter-based heuristic when stream parsing fails.
     """
     try:
         from pypdf import PdfReader
@@ -295,38 +398,291 @@ def parse_pdf(file_path: str) -> Dict[str, Any]:
 
     width_mm = width_pt * 25.4 / 72
     height_mm = height_pt * 25.4 / 72
-
-    # For PDF, we often don't know the internal vector complexity without rendering
-    # We'll use a heuristic or warn the user
     area_cm2 = (width_mm * height_mm) / 100
 
-    return {
+    # Try to extract vector path lengths from the PDF content stream
+    cut_length_pt = 0.0
+    stream_parsed = False
+    try:
+        content = page.extract_text() or ""
+        # Extract raw content stream for vector operators
+        if "/Contents" in (page.get("/Type") or ""):
+            pass  # handled below
+
+        # pypdf can give us the page content stream bytes
+        raw_content = ""
+        try:
+            contents = page["/Contents"]
+            if contents is not None:
+                if hasattr(contents, "get_data"):
+                    raw_content = contents.get_data().decode("latin-1", errors="ignore")
+                elif hasattr(contents, "__iter__"):
+                    # Array of streams
+                    parts = []
+                    for stream_ref in contents:
+                        obj = stream_ref.get_object()
+                        if hasattr(obj, "get_data"):
+                            parts.append(obj.get_data().decode("latin-1", errors="ignore"))
+                    raw_content = "\n".join(parts)
+        except Exception:
+            raw_content = ""
+
+        if raw_content:
+            cut_length_pt = _estimate_pdf_cut_length(raw_content)
+            if cut_length_pt > 0:
+                stream_parsed = True
+    except Exception as exc:
+        logger.debug(f"PDF stream parsing failed: {exc}")
+
+    if stream_parsed:
+        # Convert points to mm (1 pt = 25.4/72 mm)
+        cut_length_mm = cut_length_pt * 25.4 / 72
+    else:
+        # Heuristic: perimeter of bounding box
+        cut_length_mm = 2 * (width_mm + height_mm)
+
+    result: Dict[str, Any] = {
         "format": "PDF",
         "width_mm": round(width_mm, 2),
         "height_mm": round(height_mm, 2),
         "area_cm2": round(area_cm2, 2),
-        "cut_length_mm": round(math.sqrt(area_cm2 * 100) * 4, 2), # Heuristic: perimeter
-        "notes": "Vector complexity for PDF is estimated based on page boundaries."
+        "cut_length_mm": round(cut_length_mm, 2),
     }
+    if not stream_parsed:
+        result["notes"] = "Cut length estimated from page boundaries (no vector streams found)."
+    return result
+
+
+def _estimate_pdf_cut_length(stream: str) -> float:
+    """
+    Walk through a PDF content stream and sum up line/curve segment lengths.
+
+    Recognises the operators: m (moveto), l (lineto), c (curveto),
+    v/y (shorthand curves), h (closepath), re (rectangle).
+    Returns total length in PDF points.
+    """
+    # Tokenise: numbers followed by an operator letter
+    tokens = re.findall(r'[-+]?\d*\.?\d+|[a-zA-Z]+\*?', stream)
+
+    total_length = 0.0
+    num_stack: list[float] = []
+    current_x, current_y = 0.0, 0.0
+    start_x, start_y = 0.0, 0.0
+
+    for tok in tokens:
+        # Try to parse as number
+        try:
+            num_stack.append(float(tok))
+            continue
+        except ValueError:
+            pass
+
+        op = tok
+        ns = num_stack
+        num_stack = []
+
+        if op == "m" and len(ns) >= 2:
+            current_x, current_y = ns[-2], ns[-1]
+            start_x, start_y = current_x, current_y
+        elif op == "l" and len(ns) >= 2:
+            nx, ny = ns[-2], ns[-1]
+            total_length += math.sqrt((nx - current_x) ** 2 + (ny - current_y) ** 2)
+            current_x, current_y = nx, ny
+        elif op == "c" and len(ns) >= 6:
+            # Cubic bezier: approximate with chord length (good enough for cost estimate)
+            nx, ny = ns[-2], ns[-1]
+            # Better approx: sum of control polygon segments
+            cp1x, cp1y = ns[-6], ns[-5]
+            cp2x, cp2y = ns[-4], ns[-3]
+            seg = (
+                math.sqrt((cp1x - current_x) ** 2 + (cp1y - current_y) ** 2)
+                + math.sqrt((cp2x - cp1x) ** 2 + (cp2y - cp1y) ** 2)
+                + math.sqrt((nx - cp2x) ** 2 + (ny - cp2y) ** 2)
+            )
+            # Control polygon is always >= arc length; use 0.75 factor as heuristic
+            total_length += seg * 0.75
+            current_x, current_y = nx, ny
+        elif op == "v" and len(ns) >= 4:
+            nx, ny = ns[-2], ns[-1]
+            total_length += math.sqrt((nx - current_x) ** 2 + (ny - current_y) ** 2)
+            current_x, current_y = nx, ny
+        elif op == "y" and len(ns) >= 4:
+            nx, ny = ns[-2], ns[-1]
+            total_length += math.sqrt((nx - current_x) ** 2 + (ny - current_y) ** 2)
+            current_x, current_y = nx, ny
+        elif op == "re" and len(ns) >= 4:
+            rx, ry, rw, rh = ns[-4], ns[-3], ns[-2], ns[-1]
+            total_length += 2 * (abs(rw) + abs(rh))
+            current_x, current_y = rx, ry
+            start_x, start_y = rx, ry
+        elif op == "h":
+            total_length += math.sqrt(
+                (start_x - current_x) ** 2 + (start_y - current_y) ** 2
+            )
+            current_x, current_y = start_x, start_y
+
+    return total_length
+
+def _parse_postscript_bbox(file_path: str) -> Dict[str, Any]:
+    """
+    Extract BoundingBox from a PostScript-based file (EPS / legacy AI).
+
+    Looks for %%BoundingBox and %%HiResBoundingBox comments.
+    Values are in PostScript points (1/72 inch).
+
+    Handles binary EPS files (with EPSC magic C5 D0 D3 C6 header) by reading
+    a larger chunk so we capture the PostScript section that follows the header.
+    """
+    bbox_match = None
+    try:
+        # Binary EPS (Photoshop, Illustrator legacy) starts with C5 D0 D3 C6.
+        # The PS section may start at byte offset stored in bytes 4–7 of the
+        # header.  Reading 32 KB covers the DSC comments for virtually all files.
+        with open(file_path, "rb") as fb:
+            raw_start = fb.read(4)
+            is_binary_eps = raw_start == b"\xc5\xd0\xd3\xc6"
+            if is_binary_eps:
+                # Read up to 64 KB; PS section starts at offset given in header
+                fb.seek(0)
+                raw = fb.read(65536)
+            else:
+                fb.seek(0)
+                raw = fb.read(32768)
+
+        header = raw.decode("latin-1", errors="ignore")
+
+        # Prefer HiResBoundingBox (floating point)
+        hires = re.search(
+            r"%%HiResBoundingBox:\s*([-+]?\d*\.?\d+)\s+([-+]?\d*\.?\d+)\s+([-+]?\d*\.?\d+)\s+([-+]?\d*\.?\d+)",
+            header,
+        )
+        if hires:
+            bbox_match = [float(v) for v in hires.groups()]
+        else:
+            std = re.search(
+                r"%%BoundingBox:\s*([-+]?\d*\.?\d+)\s+([-+]?\d*\.?\d+)\s+([-+]?\d*\.?\d+)\s+([-+]?\d*\.?\d+)",
+                header,
+            )
+            if std:
+                bbox_match = [float(v) for v in std.groups()]
+    except Exception as exc:
+        logger.debug(f"Failed to read PS header from {file_path}: {exc}")
+
+    if bbox_match is None:
+        return {
+            "width_mm": 0.0,
+            "height_mm": 0.0,
+            "area_cm2": 0.0,
+            "cut_length_mm": 0.0,
+            "notes": "No BoundingBox found in file header.",
+        }
+
+    x1, y1, x2, y2 = bbox_match
+    width_pt = x2 - x1
+    height_pt = y2 - y1
+    width_mm = width_pt * 25.4 / 72
+    height_mm = height_pt * 25.4 / 72
+    area_cm2 = (width_mm * height_mm) / 100
+    cut_length_mm = 2 * (width_mm + height_mm)  # perimeter heuristic
+
+    return {
+        "width_mm": round(width_mm, 2),
+        "height_mm": round(height_mm, 2),
+        "area_cm2": round(area_cm2, 2),
+        "cut_length_mm": round(cut_length_mm, 2),
+        "notes": "Dimensions from BoundingBox; cut length estimated from perimeter.",
+    }
+
+
+def _try_ghostscript_to_svg_parse(file_path: str) -> Dict[str, Any] | None:
+    """
+    If ghostscript is available, convert the file to SVG via an intermediate
+    step and parse the resulting SVG for accurate dimensions / cut length.
+    Returns None if ghostscript is unavailable or the conversion fails.
+    """
+    import shutil
+    import tempfile
+
+    if not shutil.which("gs"):
+        return None
+
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".svg", delete=False) as tmp:
+            tmp_svg = tmp.name
+
+        # gs can produce SVG via the svg device (available in recent versions)
+        # Fallback: convert to PDF first, then use cairosvg
+        result = subprocess.run(
+            [
+                "gs", "-dBATCH", "-dNOPAUSE", "-dQUIET",
+                "-sDEVICE=svg",
+                f"-sOutputFile={tmp_svg}",
+                file_path,
+            ],
+            capture_output=True,
+            timeout=30,
+        )
+        if result.returncode == 0 and Path(tmp_svg).stat().st_size > 0:
+            parsed = parse_svg(tmp_svg)
+            return parsed
+    except (subprocess.TimeoutExpired, Exception) as exc:
+        logger.debug(f"Ghostscript SVG conversion failed: {exc}")
+    finally:
+        try:
+            Path(tmp_svg).unlink(missing_ok=True)
+        except Exception:
+            pass
+
+    return None
+
+
+def parse_eps(file_path: str) -> Dict[str, Any]:
+    """
+    Parse EPS (Encapsulated PostScript) file.
+
+    Strategy:
+    1. Try converting via ghostscript to SVG and parsing that.
+    2. Fall back to extracting BoundingBox from file header.
+    """
+    # Try ghostscript path for accurate results
+    gs_result = _try_ghostscript_to_svg_parse(file_path)
+    if gs_result is not None:
+        gs_result["format"] = "EPS"
+        return gs_result
+
+    # Fallback: parse BoundingBox from header
+    info = _parse_postscript_bbox(file_path)
+    info["format"] = "EPS"
+    return info
+
 
 def parse_ai(file_path: str) -> Dict[str, Any]:
     """
-    AI files are often PDF compatible.
+    Parse Adobe Illustrator file.
+
+    Modern AI files (CS+) are PDF-compatible and can be parsed via pypdf.
+    Legacy AI files are EPS-based; we fall back to BoundingBox extraction.
     """
+    # Try PDF-based parsing first (modern AI)
     try:
         res = parse_pdf(file_path)
         res["format"] = "AI"
         return res
     except Exception:
-        # If not PDF compatible, it might be the old EPS-based AI format
-        return {
-            "format": "AI (Legacy)",
-            "width_mm": 0,
-            "height_mm": 0,
-            "area_cm2": 0,
-            "cut_length_mm": 0,
-            "error": "Legacy AI format (EPS based) not supported. Save as SVG or PDF-compatible AI."
-        }
+        pass
+
+    # Try ghostscript SVG conversion
+    gs_result = _try_ghostscript_to_svg_parse(file_path)
+    if gs_result is not None:
+        gs_result["format"] = "AI"
+        return gs_result
+
+    # Fall back to EPS-style BoundingBox extraction
+    info = _parse_postscript_bbox(file_path)
+    info["format"] = "AI (Legacy)"
+    if info["width_mm"] == 0.0:
+        info["notes"] = "Could not parse AI file. Save as PDF-compatible AI or SVG for best results."
+    return info
 
 def validate_geometry(msp) -> Dict[str, Any]:
     """
@@ -353,6 +709,113 @@ def validate_geometry(msp) -> Dict[str, Any]:
     else:
         return {"is_valid": False, "warnings": warnings}
 
+def _parse_hpgl(file_path: str) -> Dict[str, Any]:
+    """Parse HPGL/PLT files - simple pen plotter format"""
+    try:
+        with open(file_path, 'r', errors='ignore') as f:
+            content = f.read()
+
+        # Extract coordinates from PU (pen up) and PD (pen down) commands
+        coords = re.findall(r'P[UD](\d+),(\d+)', content)
+
+        if coords:
+            xs = [int(c[0]) for c in coords]
+            ys = [int(c[1]) for c in coords]
+            # HPGL units are 0.025mm (40 units per mm)
+            width_mm = (max(xs) - min(xs)) / 40.0
+            height_mm = (max(ys) - min(ys)) / 40.0
+
+            # Estimate cut length from PD moves
+            pd_coords = []
+            in_pd = False
+            coords_str = ""
+            for line in content.split(';'):
+                line = line.strip()
+                if line.startswith('PD'):
+                    in_pd = True
+                    coords_str = line[2:]
+                elif line.startswith('PU'):
+                    in_pd = False
+                    continue
+
+                if in_pd and coords_str:
+                    pairs = re.findall(r'(\d+),(\d+)', coords_str)
+                    pd_coords.extend([(int(x)/40.0, int(y)/40.0) for x, y in pairs])
+
+            cut_length = 0.0
+            for i in range(1, len(pd_coords)):
+                dx = pd_coords[i][0] - pd_coords[i-1][0]
+                dy = pd_coords[i][1] - pd_coords[i-1][1]
+                cut_length += (dx*dx + dy*dy) ** 0.5
+
+            return {
+                "format": "HPGL",
+                "width_mm": round(width_mm, 2),
+                "height_mm": round(height_mm, 2),
+                "area_cm2": round(width_mm * height_mm / 100, 2),
+                "cut_length_mm": round(cut_length, 2),
+            }
+    except Exception:
+        pass
+
+    return _default_parse_result("", "HPGL", "HPGL parse failed")
+
+
+def parse_cdr(file_path: str) -> Dict[str, Any]:
+    """Parse a Corel Draw .cdr file.
+
+    Converts to SVG via LibreOffice headless (libcdr import filter) and then
+    delegates to parse_svg. Falls back to the generic size heuristic if
+    LibreOffice is missing or conversion fails.
+    """
+    import tempfile
+    from app.utils.file_converter import cdr_to_svg
+    try:
+        svg_text = cdr_to_svg(file_path)
+    except Exception as exc:
+        logger.warning(f"CDR→SVG failed for {file_path}: {exc}")
+        result = _parse_binary_fallback(file_path)
+        result["note"] = (
+            "CDR conversion unavailable — dimensions estimated. "
+            "Install LibreOffice or re-export as SVG/DXF for accurate analysis."
+        )
+        return result
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".svg", delete=False, encoding="utf-8"
+    ) as tmp:
+        tmp.write(svg_text)
+        tmp_path = tmp.name
+    try:
+        parsed = parse_svg(tmp_path)
+        parsed["format"] = "CDR"
+        parsed.setdefault("note", "CDR converted to SVG via LibreOffice for analysis.")
+        return parsed
+    finally:
+        try:
+            Path(tmp_path).unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
+def _parse_binary_fallback(file_path: str) -> Dict[str, Any]:
+    """Fallback for binary formats - extract minimal info"""
+    import os
+    file_size = os.path.getsize(file_path)
+    ext = Path(file_path).suffix.lstrip('.').upper()
+
+    # Rough estimation based on file size
+    estimated_area = file_size / 100  # Very rough heuristic
+
+    return {
+        "format": ext,
+        "width_mm": 100.0,  # Default placeholder
+        "height_mm": 100.0,
+        "area_cm2": round(estimated_area, 2) if estimated_area < 10000 else 100.0,
+        "cut_length_mm": 500.0,  # Default placeholder
+        "note": "Binary format - dimensions estimated. Upload SVG or DXF for accurate analysis."
+    }
+
+
 def _default_parse_result(file_path: str, fmt: str, error: str) -> Dict[str, Any]:
     """Return sensible defaults when parsing fails."""
     return {
@@ -364,6 +827,249 @@ def _default_parse_result(file_path: str, fmt: str, error: str) -> Dict[str, Any
         "error": error,
         "validation": {"is_valid": False, "warnings": [error]},
     }
+
+
+def validate_laser_cuttable(file_path: str) -> Dict[str, Any]:
+    """
+    Heuristic validation of SVG/DXF files for laser cutting suitability.
+
+    Returns: {
+      "score": 0-100,
+      "issues": [{"severity": "error|warning|info", "code": "...", "message": "...", "count": N}],
+      "summary": "N issues found"
+    }
+    """
+    ext = Path(file_path).suffix.lower()
+    issues: list[Dict[str, Any]] = []
+
+    try:
+        if ext == ".svg":
+            issues = _validate_svg(file_path)
+        elif ext == ".dxf":
+            issues = _validate_dxf(file_path)
+        else:
+            issues = [{
+                "severity": "info",
+                "code": "format_limited",
+                "message": f"Validation for {ext} is limited. Upload SVG or DXF for full checks.",
+                "count": 1,
+            }]
+    except Exception as exc:
+        logger.warning(f"validate_laser_cuttable failed for {file_path}: {exc}")
+        issues = [{
+            "severity": "warning",
+            "code": "validation_failed",
+            "message": f"Could not fully validate file: {exc}",
+            "count": 1,
+        }]
+
+    errors = sum(i.get("count", 1) for i in issues if i["severity"] == "error")
+    warnings = sum(i.get("count", 1) for i in issues if i["severity"] == "warning")
+    infos = sum(i.get("count", 1) for i in issues if i["severity"] == "info")
+
+    score = max(0, min(100, 100 - errors * 15 - warnings * 5 - infos * 1))
+    total = errors + warnings + infos
+    summary = "Looks good for laser cutting!" if total == 0 else f"{total} issue{'s' if total != 1 else ''} found"
+
+    return {"score": score, "issues": issues, "summary": summary}
+
+
+def _validate_svg(file_path: str) -> list:
+    """Validate SVG file for common laser-cutting issues."""
+    import xml.etree.ElementTree as ET
+
+    issues: list[Dict[str, Any]] = []
+
+    try:
+        # Reuse the UTF-16-aware reader so Corel-exported SVGs validate too
+        raw = _read_svg_source(file_path).decode("utf-8", errors="ignore")
+    except Exception as exc:
+        return [{"severity": "error", "code": "read_failed", "message": str(exc), "count": 1}]
+
+    # Fill detection (regex — handles inline styles and attributes)
+    fill_count = 0
+    for m in re.finditer(r'\b(?:fill|style)\s*=\s*"([^"]*)"', raw, re.IGNORECASE):
+        val = m.group(1).lower()
+        if "fill" in val and "fill:none" not in val.replace(" ", "") and "fill=\"none\"" not in val:
+            # crude check: non-none fill present
+            if "none" not in val:
+                fill_count += 1
+    if fill_count > 0:
+        issues.append({
+            "severity": "warning",
+            "code": "has_fills",
+            "message": "Filled shapes detected. Lasers only cut outlines — fills will be ignored or engraved.",
+            "count": fill_count,
+        })
+
+    # Embedded raster images
+    image_count = len(re.findall(r"<\s*image\b", raw, re.IGNORECASE))
+    if image_count > 0:
+        issues.append({
+            "severity": "error",
+            "code": "raster_image",
+            "message": "Embedded raster images cannot be laser cut. Convert to vector paths.",
+            "count": image_count,
+        })
+
+    # Text not converted to paths
+    text_count = len(re.findall(r"<\s*text\b", raw, re.IGNORECASE))
+    if text_count > 0:
+        issues.append({
+            "severity": "error",
+            "code": "text_not_path",
+            "message": "Text elements found. Convert text to paths/outlines before cutting.",
+            "count": text_count,
+        })
+
+    # Parse for path-level checks
+    try:
+        tree = ET.parse(file_path)
+        root = tree.getroot()
+    except Exception:
+        return issues
+
+    ns = "{http://www.w3.org/2000/svg}"
+    paths = list(root.iter(f"{ns}path"))
+
+    open_path_count = 0
+    tiny_detail_count = 0
+    path_bboxes: list[tuple[float, float, float, float]] = []
+
+    for p in paths:
+        d = p.get("d", "")
+        if not d:
+            continue
+        # Open path: no Z/z and no explicit close
+        if not re.search(r"[Zz]", d):
+            open_path_count += 1
+        # Tiny detail heuristic: extract coord extent
+        nums = [float(n) for n in re.findall(r"[-+]?\d*\.\d+|\d+", d)]
+        if len(nums) >= 4:
+            xs = nums[0::2]
+            ys = nums[1::2]
+            if xs and ys:
+                bw = max(xs) - min(xs)
+                bh = max(ys) - min(ys)
+                if 0 < max(bw, bh) < 1.0:
+                    tiny_detail_count += 1
+                path_bboxes.append((min(xs), min(ys), max(xs), max(ys)))
+
+    if open_path_count > 0:
+        issues.append({
+            "severity": "error",
+            "code": "open_path",
+            "message": "Open paths (no Z close command) — laser may not cut through properly.",
+            "count": open_path_count,
+        })
+
+    if tiny_detail_count > 0:
+        issues.append({
+            "severity": "warning",
+            "code": "tiny_details",
+            "message": "Very small details (< 1 mm) may burn away or not cut cleanly.",
+            "count": tiny_detail_count,
+        })
+
+    # Overlapping paths (simple bbox-overlap heuristic, capped to avoid O(n^2) blow-up)
+    overlap = 0
+    limit = min(len(path_bboxes), 80)
+    for i in range(limit):
+        for j in range(i + 1, limit):
+            a = path_bboxes[i]
+            b = path_bboxes[j]
+            if a[0] < b[2] and a[2] > b[0] and a[1] < b[3] and a[3] > b[1]:
+                # crude: inner bbox fully inside another counts once
+                if a[0] >= b[0] and a[1] >= b[1] and a[2] <= b[2] and a[3] <= b[3]:
+                    overlap += 1
+                    break
+    if overlap > 0:
+        issues.append({
+            "severity": "info",
+            "code": "overlapping_paths",
+            "message": "Some paths overlap or are nested — laser will double-cut these areas.",
+            "count": overlap,
+        })
+
+    return issues
+
+
+def _validate_dxf(file_path: str) -> list:
+    """Validate DXF file for common laser-cutting issues."""
+    issues: list[Dict[str, Any]] = []
+
+    try:
+        doc = ezdxf.readfile(file_path)
+    except Exception as exc:
+        return [{"severity": "error", "code": "read_failed", "message": str(exc), "count": 1}]
+
+    msp = doc.modelspace()
+    SUPPORTED = {"LINE", "CIRCLE", "ARC", "POLYLINE", "LWPOLYLINE", "SPLINE", "ELLIPSE", "INSERT", "POINT"}
+
+    open_poly = 0
+    unsupported: dict[str, int] = {}
+    layers: set[str] = set()
+    entity_sigs: dict[tuple, int] = {}
+
+    for entity in msp:
+        t = entity.dxftype()
+        layers.add(getattr(entity.dxf, "layer", "0"))
+        if t not in SUPPORTED:
+            unsupported[t] = unsupported.get(t, 0) + 1
+        if t in ("POLYLINE", "LWPOLYLINE"):
+            try:
+                if not entity.is_closed:
+                    open_poly += 1
+            except Exception:
+                pass
+        # Duplicate detection (by type + key coords)
+        try:
+            if t == "LINE":
+                s = entity.dxf.start
+                e = entity.dxf.end
+                sig = ("LINE", round(s[0], 3), round(s[1], 3), round(e[0], 3), round(e[1], 3))
+            elif t == "CIRCLE":
+                c = entity.dxf.center
+                sig = ("CIRCLE", round(c[0], 3), round(c[1], 3), round(entity.dxf.radius, 3))
+            else:
+                sig = None
+            if sig is not None:
+                entity_sigs[sig] = entity_sigs.get(sig, 0) + 1
+        except Exception:
+            pass
+
+    duplicates = sum(c - 1 for c in entity_sigs.values() if c > 1)
+
+    if open_poly > 0:
+        issues.append({
+            "severity": "error",
+            "code": "open_polyline",
+            "message": "Open polylines detected — close paths to ensure a through cut.",
+            "count": open_poly,
+        })
+    if duplicates > 0:
+        issues.append({
+            "severity": "warning",
+            "code": "duplicate_entities",
+            "message": "Duplicate entities found — laser will cut these lines twice.",
+            "count": duplicates,
+        })
+    for utype, cnt in unsupported.items():
+        issues.append({
+            "severity": "warning",
+            "code": "unsupported_entity",
+            "message": f"Unsupported entity type '{utype}' may not be cut.",
+            "count": cnt,
+        })
+    if len(layers) > 1:
+        issues.append({
+            "severity": "info",
+            "code": "multiple_layers",
+            "message": f"Multiple layers ({len(layers)}) detected — confirm which should be cut vs engraved.",
+            "count": len(layers),
+        })
+
+    return issues
 
 
 def parse_generic(file_path: str) -> Dict[str, Any]:
@@ -378,7 +1084,12 @@ def parse_generic(file_path: str) -> Dict[str, Any]:
         '.svg': ('SVG', parse_svg),
         '.pdf': ('PDF', parse_pdf),
         '.ai': ('AI', parse_ai),
-        '.eps': ('EPS', parse_ai),
+        '.eps': ('EPS', parse_eps),
+        '.cdr': ('CDR', parse_cdr),
+        '.plt': ('PLT', _parse_hpgl),
+        '.hpgl': ('HPGL', _parse_hpgl),
+        '.wmf': ('WMF', _parse_binary_fallback),
+        '.emf': ('EMF', _parse_binary_fallback),
     }
 
     if ext not in parsers:

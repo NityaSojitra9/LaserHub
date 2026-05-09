@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Invoice {{ invoice.invoice_number }}</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 15mm;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Helvetica", "Arial", sans-serif;
+      color: #111827;
+      font-size: 10px;
+      line-height: 1.4;
+      margin: 0;
+    }
+    .row { display: flex; width: 100%; }
+    .col { flex: 1; }
+    .text-right { text-align: right; }
+    .text-muted { color: #6b7280; }
+    hr { border: none; border-top: 1px solid #e5e7eb; margin: 8px 0; }
+
+    .brand { color: #0ea5e9; font-size: 20px; font-weight: 700; margin: 0 0 4px; }
+    .title { text-align: right; font-size: 22px; font-weight: 700; margin: 0; letter-spacing: 1px; }
+
+    .meta { font-size: 10px; color: #374151; }
+    .label { color: #6b7280; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .box {
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      padding: 8px 10px;
+    }
+
+    table.items {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 9px;
+    }
+    table.items thead th {
+      background: #0ea5e9;
+      color: #fff;
+      padding: 6px 4px;
+      text-align: center;
+      font-weight: 700;
+    }
+    table.items tbody td {
+      border: 1px solid #d1d5db;
+      padding: 5px 4px;
+      vertical-align: top;
+    }
+    table.items tbody tr:nth-child(even) td { background: #f9fafb; }
+    .num { text-align: right; }
+    .center { text-align: center; }
+
+    table.totals {
+      margin-left: auto;
+      margin-top: 10px;
+      border-collapse: collapse;
+      font-size: 10px;
+    }
+    table.totals td { padding: 4px 10px; }
+    table.totals tr.grand td {
+      background: #f0f9ff;
+      font-weight: 700;
+      border-top: 2px solid #0ea5e9;
+    }
+
+    .footer {
+      margin-top: 16px;
+      text-align: center;
+      color: #6b7280;
+      font-size: 9px;
+    }
+    .sig {
+      margin-top: 30px;
+      text-align: right;
+    }
+    .sig .line { border-top: 1px solid #111827; width: 180px; margin-left: auto; margin-top: 30px; }
+  </style>
+</head>
+<body>
+
+  <div class="row">
+    <div class="col">
+      <h1 class="brand">{{ invoice.seller_name or "LaserHub" }}</h1>
+      {% if invoice.seller_address %}
+        <div class="meta">{{ invoice.seller_address | replace("\n", "<br/>") | safe }}</div>
+      {% endif %}
+      <div class="meta">
+        {% if invoice.seller_gstin %}GSTIN: {{ invoice.seller_gstin }}<br/>{% endif %}
+        {% if invoice.seller_pan %}PAN: {{ invoice.seller_pan }}<br/>{% endif %}
+        {% if invoice.seller_email %}{{ invoice.seller_email }}{% endif %}
+        {% if invoice.seller_phone %} &middot; {{ invoice.seller_phone }}{% endif %}
+      </div>
+    </div>
+    <div class="col">
+      <p class="title">TAX INVOICE</p>
+      <div class="meta text-right">
+        <strong>#{{ invoice.invoice_number }}</strong><br/>
+        Date: {{ fmt_date(invoice.invoice_date) }}<br/>
+        {% if invoice.due_date %}Due: {{ fmt_date(invoice.due_date) }}<br/>{% endif %}
+        Status: <strong>{{ (invoice.status or "") | upper }}</strong>
+      </div>
+    </div>
+  </div>
+
+  <hr/>
+
+  <div class="row">
+    <div class="col box" style="margin-right: 6px;">
+      <div class="label">Bill To</div>
+      <strong>{{ invoice.buyer_name or "-" }}</strong><br/>
+      {% if invoice.buyer_address %}<span class="meta">{{ invoice.buyer_address | replace("\n", "<br/>") | safe }}</span><br/>{% endif %}
+      <span class="meta">
+        {% if invoice.buyer_state %}State: {{ invoice.buyer_state }}{% if invoice.buyer_state_code %} ({{ invoice.buyer_state_code }}){% endif %}<br/>{% endif %}
+        {% if invoice.buyer_gstin %}GSTIN: {{ invoice.buyer_gstin }}<br/>{% endif %}
+        {% if invoice.buyer_email %}{{ invoice.buyer_email }}{% endif %}
+        {% if invoice.buyer_phone %} &middot; {{ invoice.buyer_phone }}{% endif %}
+      </span>
+    </div>
+    <div class="col box" style="margin-left: 6px;">
+      <div class="label">Ship To</div>
+      <strong>{{ invoice.buyer_name or "-" }}</strong><br/>
+      {% if invoice.buyer_address %}<span class="meta">{{ invoice.buyer_address | replace("\n", "<br/>") | safe }}</span>{% endif %}
+    </div>
+  </div>
+
+  <p class="meta" style="margin-top: 10px;">
+    {% if invoice.place_of_supply %}<strong>Place of Supply:</strong> {{ invoice.place_of_supply }}{% if invoice.place_of_supply_code %} ({{ invoice.place_of_supply_code }}){% endif %} &middot; {% endif %}
+    <strong>Reverse Charge:</strong> {{ "Yes" if invoice.reverse_charge else "No" }} &middot;
+    <strong>Interstate:</strong> {{ "Yes" if invoice.is_interstate else "No" }}
+  </p>
+
+  <table class="items">
+    <thead>
+      <tr>
+        <th>Sr</th>
+        <th>Description</th>
+        <th>HSN/SAC</th>
+        <th>Qty</th>
+        <th>Unit Price</th>
+        <th>Disc %</th>
+        <th>Taxable</th>
+        <th>CGST</th>
+        <th>SGST</th>
+        <th>IGST</th>
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for li in line_items %}
+      <tr>
+        <td class="center">{{ loop.index }}</td>
+        <td>{{ li.description or "-" }}</td>
+        <td class="center">{{ li.hsn_sac_code or "-" }}</td>
+        <td class="num">{{ fmt_num(li.quantity) }} {{ li.unit or "" }}</td>
+        <td class="num">{{ fmt_money(li.unit_price) }}</td>
+        <td class="num">{{ fmt_num(li.discount_percent) }}</td>
+        <td class="num">{{ fmt_money(li.taxable_value) }}</td>
+        <td class="num">{{ fmt_num(li.cgst_rate) }}%<br/>{{ fmt_money(li.cgst_amount) }}</td>
+        <td class="num">{{ fmt_num(li.sgst_rate) }}%<br/>{{ fmt_money(li.sgst_amount) }}</td>
+        <td class="num">{{ fmt_num(li.igst_rate) }}%<br/>{{ fmt_money(li.igst_amount) }}</td>
+        <td class="num">{{ fmt_money(li.total_amount) }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="11" class="center text-muted"><em>No line items</em></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <table class="totals">
+    <tr><td class="text-right">Subtotal</td><td class="num">{{ fmt_money(invoice.subtotal) }}</td></tr>
+    {% if invoice.discount_amount and invoice.discount_amount > 0 %}
+    <tr><td class="text-right">Discount</td><td class="num">- {{ fmt_money(invoice.discount_amount) }}</td></tr>
+    {% endif %}
+    <tr><td class="text-right">Taxable Amount</td><td class="num">{{ fmt_money(invoice.taxable_amount) }}</td></tr>
+    {% if invoice.cgst_amount and invoice.cgst_amount > 0 %}
+    <tr><td class="text-right">CGST</td><td class="num">{{ fmt_money(invoice.cgst_amount) }}</td></tr>
+    {% endif %}
+    {% if invoice.sgst_amount and invoice.sgst_amount > 0 %}
+    <tr><td class="text-right">SGST</td><td class="num">{{ fmt_money(invoice.sgst_amount) }}</td></tr>
+    {% endif %}
+    {% if invoice.igst_amount and invoice.igst_amount > 0 %}
+    <tr><td class="text-right">IGST</td><td class="num">{{ fmt_money(invoice.igst_amount) }}</td></tr>
+    {% endif %}
+    {% if invoice.round_off and invoice.round_off != 0 %}
+    <tr><td class="text-right">Round Off</td><td class="num">{{ fmt_money(invoice.round_off) }}</td></tr>
+    {% endif %}
+    <tr class="grand"><td class="text-right">Grand Total</td><td class="num">{{ fmt_money(invoice.total_amount) }}</td></tr>
+  </table>
+
+  <p class="meta" style="margin-top: 10px;"><strong>Amount in Words:</strong> {{ amount_in_words }}</p>
+
+  {% if invoice.notes %}
+  <p class="meta"><strong>Notes</strong><br/>{{ invoice.notes | replace("\n", "<br/>") | safe }}</p>
+  {% endif %}
+  {% if invoice.terms_and_conditions %}
+  <p class="meta"><strong>Terms &amp; Conditions</strong><br/>{{ invoice.terms_and_conditions | replace("\n", "<br/>") | safe }}</p>
+  {% endif %}
+
+  <div class="sig meta">
+    For <strong>{{ invoice.seller_name or "LaserHub" }}</strong>
+    <div class="line"></div>
+    Authorised Signatory
+  </div>
+
+  <hr/>
+  <p class="footer">This is a computer-generated invoice and does not require a physical signature.</p>
+
+</body>
+</html>

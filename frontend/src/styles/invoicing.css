@@ -1,0 +1,509 @@
+/* ==========================================================================
+   Invoicing — list page, detail modal, generate modal, billing form
+   Uses existing .adm-* and .sa-* primitives from admin.css / super-admin.css
+   ========================================================================== */
+
+.invoice-list-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.invoice-list-page__filters {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 1rem;
+  background: var(--bg-primary, #fff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 10px;
+}
+
+.invoice-list-page__filters input[type="date"],
+.invoice-list-page__filters input[type="text"],
+.invoice-list-page__filters select {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 6px;
+  background: var(--bg-primary, #fff);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+
+.invoice-list-page__filters label {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.invoice-search-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1 1 240px;
+  min-width: 200px;
+}
+
+.invoice-search-wrap input {
+  flex: 1;
+  width: 100%;
+}
+
+/* ----- Status badges (invoices) ----- */
+.inv-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.inv-badge--draft {
+  background: rgba(107, 114, 128, 0.12);
+  color: #6b7280;
+}
+
+.inv-badge--issued {
+  background: rgba(59, 130, 246, 0.14);
+  color: #2563eb;
+}
+
+.inv-badge--paid {
+  background: rgba(16, 185, 129, 0.14);
+  color: #059669;
+}
+
+.inv-badge--cancelled {
+  background: rgba(239, 68, 68, 0.14);
+  color: #dc2626;
+}
+
+/* ----- Invoice number (monospace) ----- */
+.inv-number {
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ----- Detail modal ----- */
+.inv-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 9998;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow-y: auto;
+  padding: 2.5rem 1rem;
+}
+
+.inv-modal {
+  position: relative;
+  width: min(900px, 100%);
+  background: var(--bg-primary, #fff);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 5rem);
+  overflow: hidden;
+}
+
+.inv-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  background: var(--bg-secondary, #f8fafc);
+}
+
+.inv-modal__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.inv-modal__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.inv-modal__body {
+  padding: 1.25rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.inv-modal__footer {
+  padding: 0.75rem 1.25rem;
+  border-top: 1px solid var(--border-color, #e5e7eb);
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  background: var(--bg-secondary, #f8fafc);
+}
+
+/* ----- Invoice preview (print-style sheet) ----- */
+.inv-preview {
+  background: #ffffff;
+  color: #111827;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1.75rem 2rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.dark-mode .inv-preview {
+  /* Keep preview looking like paper even in dark mode */
+  color: #111827;
+}
+
+.inv-preview__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #111827;
+  margin-bottom: 1rem;
+}
+
+.inv-preview__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.inv-preview__meta {
+  text-align: right;
+  font-size: 0.85rem;
+}
+
+.inv-preview__meta .inv-number {
+  color: #111827;
+}
+
+.inv-preview__parties {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.inv-preview__party h4 {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6b7280;
+}
+
+.inv-preview__party strong {
+  display: block;
+  font-size: 0.95rem;
+  color: #111827;
+  margin-bottom: 0.15rem;
+}
+
+.inv-preview__party span {
+  display: block;
+  font-size: 0.82rem;
+  color: #374151;
+  white-space: pre-wrap;
+}
+
+.inv-preview__party .inv-preview__gstin {
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  color: #1f2937;
+  margin-top: 0.25rem;
+}
+
+.inv-preview__table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+}
+
+.inv-preview__table th,
+.inv-preview__table td {
+  text-align: left;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.82rem;
+  border-bottom: 1px solid #e5e7eb;
+  color: #111827;
+}
+
+.inv-preview__table th {
+  background: #f3f4f6;
+  font-weight: 700;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #4b5563;
+}
+
+.inv-preview__table td.num,
+.inv-preview__table th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.inv-preview__totals {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.inv-preview__totals-box {
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.inv-preview__totals-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+  font-size: 0.86rem;
+  color: #374151;
+  padding: 0.2rem 0;
+}
+
+.inv-preview__totals-row--grand {
+  border-top: 2px solid #111827;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0 0;
+  font-weight: 800;
+  font-size: 1rem;
+  color: #111827;
+}
+
+.inv-preview__in-words {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed #d1d5db;
+  font-size: 0.8rem;
+  color: #374151;
+}
+
+.inv-preview__footer {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+  font-size: 0.78rem;
+  color: #4b5563;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+/* ----- Generate-invoice modal ----- */
+.inv-gen-modal {
+  width: min(600px, 100%);
+}
+
+.inv-gen-modal__preview {
+  background: var(--bg-secondary, #f8fafc);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 1rem;
+  margin-top: 0.75rem;
+}
+
+.inv-gen-modal__preview dt {
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.inv-gen-modal__preview dd {
+  margin: 0 0 0.35rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* ----- Billing settings form ----- */
+.vendor-billing {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 1000px) {
+  .vendor-billing {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vendor-billing__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.vendor-billing__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@media (max-width: 560px) {
+  .vendor-billing__row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vendor-billing__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.vendor-billing__field label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.vendor-billing__field input,
+.vendor-billing__field select,
+.vendor-billing__field textarea {
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 7px;
+  background: var(--bg-primary, #fff);
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  width: 100%;
+}
+
+.vendor-billing__field textarea {
+  resize: vertical;
+  min-height: 72px;
+  font-family: inherit;
+}
+
+.vendor-billing__field--error input,
+.vendor-billing__field--error select {
+  border-color: #ef4444;
+}
+
+.vendor-billing__help {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+}
+
+.vendor-billing__error {
+  font-size: 0.72rem;
+  color: #ef4444;
+}
+
+.vendor-billing__preview {
+  position: sticky;
+  top: 88px;
+}
+
+/* ----- Empty state ----- */
+.inv-empty {
+  padding: 3rem 1rem;
+  text-align: center;
+  color: var(--text-secondary);
+  border: 1px dashed var(--border-color, #e5e7eb);
+  border-radius: 12px;
+  background: var(--bg-secondary, #f8fafc);
+}
+
+.inv-empty svg {
+  color: var(--text-tertiary);
+  margin-bottom: 0.5rem;
+}
+
+/* ----- Table action cluster ----- */
+.inv-actions {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+/* ----- Print styles ----- */
+@media print {
+  .adm-sidebar,
+  .adm-mobile-toggle,
+  .adm-sidebar-footer,
+  .inv-modal__header,
+  .inv-modal__footer,
+  .invoice-list-page__filters,
+  .adm-page-header,
+  .inv-actions,
+  nav,
+  footer,
+  .adm-backdrop {
+    display: none !important;
+  }
+
+  .adm-main,
+  .adm-shell,
+  body {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #fff !important;
+  }
+
+  .inv-modal-backdrop {
+    position: static;
+    background: transparent;
+    padding: 0;
+  }
+
+  .inv-modal {
+    box-shadow: none;
+    max-height: none;
+    border-radius: 0;
+    width: 100%;
+  }
+
+  .inv-modal__body {
+    overflow: visible;
+    padding: 0;
+  }
+
+  .inv-preview {
+    border: none;
+    padding: 0;
+  }
+
+  .inv-preview,
+  .inv-preview * {
+    color: #000 !important;
+  }
+}

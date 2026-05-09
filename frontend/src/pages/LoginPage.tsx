@@ -1,83 +1,226 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { Mail, Lock, LogIn, Loader2 } from 'lucide-react';
+import {
+  Mail,
+  Lock,
+  LogIn,
+  Loader2,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  Zap,
+  Clock,
+  ShieldCheck,
+  Sparkles,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { GoogleLogin } from '../components/GoogleLogin';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
+
+const FEATURES = [
+  {
+    icon: Clock,
+    title: 'Instant quotes',
+    desc: 'Upload a design and compare prices across verified vendors in seconds.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Trusted vendors',
+    desc: 'Every shop is reviewed, rated, and backed by our buyer-protection guarantee.',
+  },
+  {
+    icon: Sparkles,
+    title: 'Premium materials',
+    desc: 'Acrylic, plywood, leather, metal — priced precisely per cm of cut length.',
+  },
+] as const;
 
 export const LoginPage: React.FC = () => {
+  useDocumentTitle('Sign In — LaserHub');
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [shakeForm, setShakeForm] = useState(false);
+  const [formError, setFormError] = useState('');
   const navigate = useNavigate();
   const { login, setUser, isLoading } = useAuthStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError('');
     try {
       await login(email, password);
-      toast.success('Logged in successfully');
-      navigate('/dashboard');
-    } catch (error) {
-      toast.error('Invalid email or password');
+      toast.success('Welcome back');
+      navigate('/');
+    } catch {
+      setFormError('Invalid email or password');
+      setShakeForm(true);
+      setTimeout(() => setShakeForm(false), 550);
     }
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-card">
-        <h1>Welcome Back</h1>
-        <p>Login to your LaserHub account</p>
-        
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <div className="input-with-icon">
-              <Mail size={18} />
-              <input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-          </div>
-          
-          <div className="form-group">
-            <div className="label-with-link">
-              <label htmlFor="password">Password</label>
-              <Link to="/forgot-password">Forgot password?</Link>
-            </div>
-            <div className="input-with-icon">
-              <Lock size={18} />
-              <input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-          </div>
-          
-          <button type="submit" className="auth-submit" disabled={isLoading}>
-            {isLoading ? <Loader2 size={18} className="animate-spin" /> : <LogIn size={18} />}
-            Login
-          </button>
-        </form>
-
-        <GoogleLogin onSuccess={(data) => {
-          localStorage.setItem('user_token', data.access_token);
-          setUser(data.user);
-          navigate('/dashboard');
-        }} />
-
-        <p className="auth-footer">
-          Don't have an account? <Link to="/register">Create one</Link>
-        </p>
+    <div className="lh-auth-shell">
+      {/* Background layers: gradient + animated orbs + grid overlay */}
+      <div className="lh-auth-bg" aria-hidden />
+      <div className="lh-auth-orbs" aria-hidden>
+        <span className="lh-auth-orb lh-auth-orb-a" />
+        <span className="lh-auth-orb lh-auth-orb-b" />
+        <span className="lh-auth-orb lh-auth-orb-c" />
       </div>
+      <div className="lh-auth-grid" aria-hidden />
+
+      {/* ── LEFT: Brand showcase (hero image + features) ───────────────── */}
+      <aside className="lh-auth-hero" aria-label="Why LaserHub">
+        <picture className="lh-auth-hero-img" aria-hidden>
+          <source media="(max-width: 768px)" srcSet="/brand/login-hero-mobile.webp" />
+          <img
+            src="/brand/login-hero.webp"
+            alt=""
+            loading="lazy"
+            decoding="async"
+            width={1600}
+            height={900}
+          />
+        </picture>
+        <div className="lh-auth-hero-veil" aria-hidden />
+
+        <div className="lh-auth-hero-content">
+          <div className="lh-auth-brand">
+            <span className="lh-auth-brand-mark" aria-hidden>
+              <Zap size={22} />
+            </span>
+            <div>
+              <h1>LaserHub</h1>
+              <p className="lh-auth-brand-tag">The Laser Cutting Marketplace</p>
+            </div>
+          </div>
+
+          <p className="lh-auth-hero-lede">
+            Instant quotes, vetted vendors, and premium materials — one upload away.
+          </p>
+
+          <ul className="lh-auth-features">
+            {FEATURES.map(({ icon: Icon, title, desc }) => (
+              <li key={title}>
+                <span className="lh-auth-feature-icon">
+                  <Icon size={18} />
+                </span>
+                <div>
+                  <strong>{title}</strong>
+                  <p>{desc}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </aside>
+
+      {/* ── RIGHT: Sign-in form card ───────────────────────────────────── */}
+      <main className="lh-auth-form-wrap">
+        {/* Mobile logo (visible when the left hero panel is hidden) */}
+        <Link to="/" className="lh-auth-mobile-brand">
+          <span className="lh-auth-brand-mark" aria-hidden>
+            <Zap size={18} />
+          </span>
+          <strong>LaserHub</strong>
+        </Link>
+
+        <div className={`lh-auth-card ${shakeForm ? 'lh-auth-shake' : ''}`}>
+          <div className="lh-auth-card-header">
+            <h2>Welcome back</h2>
+            <p>Sign in to quote, track orders, and manage your workshop.</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="lh-auth-form" noValidate>
+            <div className="lh-field">
+              <label htmlFor="email">Email</label>
+              <div className="lh-field-input">
+                <Mail size={16} className="lh-field-icon" />
+                <input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (formError) setFormError('');
+                  }}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="lh-field">
+              <div className="lh-field-label-row">
+                <label htmlFor="password">Password</label>
+                <Link to="/forgot-password" className="lh-field-link">
+                  Forgot password?
+                </Link>
+              </div>
+              <div className="lh-field-input">
+                <Lock size={16} className="lh-field-icon" />
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (formError) setFormError('');
+                  }}
+                  required
+                />
+                <button
+                  type="button"
+                  className="lh-field-reveal"
+                  onClick={() => setShowPassword((s) => !s)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            {formError && (
+              <div className="lh-auth-error" role="alert">
+                <AlertCircle size={16} />
+                <span>{formError}</span>
+              </div>
+            )}
+
+            <button type="submit" className="lh-auth-submit" disabled={isLoading}>
+              {isLoading ? (
+                <Loader2 size={18} className="lh-auth-spin" />
+              ) : (
+                <LogIn size={18} />
+              )}
+              {isLoading ? 'Signing in…' : 'Sign in'}
+            </button>
+          </form>
+
+          <div className="lh-auth-divider">
+            <span>or continue with</span>
+          </div>
+
+          <GoogleLogin
+            onSuccess={(data) => {
+              localStorage.setItem('user_token', data.access_token);
+              setUser(data.user);
+              navigate('/');
+            }}
+          />
+
+          <p className="lh-auth-footer">
+            New to LaserHub? <Link to="/register">Create an account</Link>
+          </p>
+        </div>
+      </main>
     </div>
   );
 };

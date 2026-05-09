@@ -1,9 +1,14 @@
-import React, { useEffect } from 'react';
-import { Calculator, Clock, Scissors } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Calculator, Clock, Scissors, ShieldCheck, AlertTriangle, XCircle, ChevronDown, ChevronUp, Wand2 } from 'lucide-react';
 import { useAppStore } from '../store';
-import { calculateApi } from '../services';
+import { calculateApi, uploadApi } from '../services';
+import type { ValidationResult } from '../services';
+import { api } from '../services/api';
 import { toast } from 'sonner';
 import { Skeleton } from './Skeleton';
+import { useCurrencyStore, formatPrice } from '../store/currencyStore';
+import { QuoteComparison, type VendorQuoteDTO } from './QuoteComparison';
 
 export const CostDisplay: React.FC<{ onCalculateComplete: () => void }> = ({ onCalculateComplete }) => {
   const {
@@ -17,6 +22,53 @@ export const CostDisplay: React.FC<{ onCalculateComplete: () => void }> = ({ onC
     setIsCalculating,
     isCalculating,
   } = useAppStore();
+
+  const { currency } = useCurrencyStore();
+  const fp = (usd: number) => formatPrice(usd, currency);
+
+  const [vendorQuotes, setVendorQuotes] = useState<VendorQuoteDTO[]>([]);
+  const [_loadingQuotes, setLoadingQuotes] = useState(false);
+  const [validation, setValidation] = useState<ValidationResult | null>(null);
+  const [validationOpen, setValidationOpen] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!uploadedFile) { setValidation(null); return; }
+    let cancelled = false;
+    uploadApi.validateFile(uploadedFile.file_id)
+      .then((res) => { if (!cancelled) setValidation(res); })
+      .catch(() => { if (!cancelled) setValidation(null); });
+    return () => { cancelled = true; };
+  }, [uploadedFile?.file_id]);
+
+  const handleAutoFix = () => {
+    if (!validation) return;
+    const fixes = validation.issues.map((i) => {
+      switch (i.code) {
+        case 'open_path':
+        case 'open_polyline':
+          return '• Close open paths by joining endpoints.';
+        case 'has_fills':
+          return '• Remove fills — lasers only cut outlines.';
+        case 'text_not_path':
+          return '• Convert text to paths before export.';
+        case 'raster_image':
+          return '• Remove/vector-trace embedded images.';
+        case 'tiny_details':
+          return '• Enlarge features under 1 mm.';
+        case 'duplicate_entities':
+          return '• Remove duplicate entities (double cuts).';
+        case 'overlapping_paths':
+          return '• Merge or delete overlapping paths.';
+        default:
+          return `• ${i.message}`;
+      }
+    });
+    toast.info('Auto-fix preview', {
+      description: fixes.join('\n') || 'Nothing obvious to fix.',
+      duration: 10000,
+    });
+  };
 
   const handleCalculate = async () => {
     if (!uploadedFile || !selectedMaterial || !selectedThickness) {
@@ -43,6 +95,33 @@ export const CostDisplay: React.FC<{ onCalculateComplete: () => void }> = ({ onC
       });
     } finally {
       setIsCalculating(false);
+    }
+  };
+
+  useEffect(() => {
+    if (costEstimate && uploadedFile && selectedMaterial && selectedThickness) {
+      loadVendorQuotes();
+    }
+  }, [costEstimate]);
+
+  const loadVendorQuotes = async () => {
+    if (!uploadedFile || !selectedMaterial || !selectedThickness) return;
+    setLoadingQuotes(true);
+    try {
+      const { data } = await api.post('/marketplace/compare', null, {
+        params: {
+          file_id: uploadedFile.file_id,
+          material_id: selectedMaterial.id,
+          thickness_mm: selectedThickness,
+          quantity: quantity,
+        },
+      });
+      setVendorQuotes(data.quotes || []);
+    } catch {
+      // No vendors available yet - that's fine
+      setVendorQuotes([]);
+    } finally {
+      setLoadingQuotes(false);
     }
   };
 
@@ -75,7 +154,66 @@ export const CostDisplay: React.FC<{ onCalculateComplete: () => void }> = ({ onC
 
   return (
     <div className="cost-display cost-display-compact">
-      <h3>Analysis & Cost</h3>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h3>Analysis & Cost</h3>
+        <span style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)' }}>
+          {currency.code} · {currency.country}
+        </span>
+      </div>
+
+      {validation && (() => {
+        const score = validation.score;
+        const tone = score >= 85 ? '#10b981' : score >= 60 ? '#f59e0b' : '#ef4444';
+        const Icon = score >= 85 ? ShieldCheck : score >= 60 ? AlertTriangle : XCircle;
+        const label = score >= 85 ? 'Laser-ready' : score >= 60 ? 'Needs review' : 'Fix before cutting';
+        return (
+          <div
+            style={{
+              margin: '0.5rem 0 0.75rem',
+              padding: '0.55rem 0.75rem',
+              border: `1px solid ${tone}`,
+              borderRadius: 8,
+              background: `${tone}14`,
+            }}
+          >
+            <div
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: validation.issues.length ? 'pointer' : 'default' }}
+              onClick={() => validation.issues.length && setValidationOpen((o) => !o)}
+            >
+              <Icon size={16} color={tone} />
+              <strong style={{ color: tone }}>{label}</strong>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                Score {score}/100 · {validation.summary}
+              </span>
+              {validation.issues.length > 0 && (
+                <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  {validationOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                </span>
+              )}
+            </div>
+            {validationOpen && validation.issues.length > 0 && (
+              <div style={{ marginTop: '0.5rem', fontSize: '0.82rem' }}>
+                <ul style={{ margin: 0, paddingLeft: '1.2rem' }}>
+                  {validation.issues.map((issue, idx) => (
+                    <li key={idx} style={{ color: issue.severity === 'error' ? '#ef4444' : issue.severity === 'warning' ? '#f59e0b' : 'var(--text-secondary)' }}>
+                      <strong style={{ textTransform: 'uppercase', fontSize: '0.68rem' }}>{issue.severity}</strong>
+                      {issue.count > 1 && <span> ×{issue.count}</span>} — {issue.message}
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  onClick={handleAutoFix}
+                  className="thickness-btn"
+                  style={{ marginTop: '0.5rem', fontSize: '0.78rem' }}
+                  type="button"
+                >
+                  <Wand2 size={12} /> Auto-fix (preview)
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       <table className="analysis-table">
         <tbody>
@@ -110,33 +248,33 @@ export const CostDisplay: React.FC<{ onCalculateComplete: () => void }> = ({ onC
 
           <div className="cost-item">
             <span className="cost-item-label">Material</span>
-            <span className="cost-item-value">${costEstimate.breakdown.material_cost.toFixed(2)}</span>
+            <span className="cost-item-value">{fp(costEstimate.breakdown.material_cost)}</span>
           </div>
           <div className="cost-item">
             <span className="cost-item-label">Laser Time</span>
-            <span className="cost-item-value">${costEstimate.breakdown.laser_time_cost.toFixed(2)}</span>
+            <span className="cost-item-value">{fp(costEstimate.breakdown.laser_time_cost)}</span>
           </div>
           <div className="cost-item">
             <span className="cost-item-label">Energy</span>
-            <span className="cost-item-value">${costEstimate.breakdown.energy_cost.toFixed(2)}</span>
+            <span className="cost-item-value">{fp(costEstimate.breakdown.energy_cost)}</span>
           </div>
           <div className="cost-item">
             <span className="cost-item-label">Setup</span>
-            <span className="cost-item-value">${costEstimate.breakdown.setup_fee.toFixed(2)}</span>
+            <span className="cost-item-value">{fp(costEstimate.breakdown.setup_fee)}</span>
           </div>
           <div className="cost-divider"></div>
           <div className="cost-item subtotal">
             <span className="cost-item-label">Subtotal</span>
-            <span className="cost-item-value">${costEstimate.breakdown.subtotal.toFixed(2)}</span>
+            <span className="cost-item-value">{fp(costEstimate.breakdown.subtotal)}</span>
           </div>
           <div className="cost-item">
             <span className="cost-item-label">Tax</span>
-            <span className="cost-item-value">${costEstimate.breakdown.tax.toFixed(2)}</span>
+            <span className="cost-item-value">{fp(costEstimate.breakdown.tax)}</span>
           </div>
           <div className="cost-divider"></div>
           <div className="cost-item total">
             <span className="cost-item-label">Total</span>
-            <span className="cost-item-value">${costEstimate.breakdown.total.toFixed(2)}</span>
+            <span className="cost-item-value">{fp(costEstimate.breakdown.total)}</span>
           </div>
           {costEstimate.estimated_production_time_hours > 0 && (
             <div className="production-time">
@@ -145,6 +283,28 @@ export const CostDisplay: React.FC<{ onCalculateComplete: () => void }> = ({ onC
             </div>
           )}
         </div>
+      )}
+
+      {/* Smart Quote Comparison */}
+      {vendorQuotes.length > 0 && selectedMaterial && selectedThickness && (
+        <QuoteComparison
+          quotes={vendorQuotes}
+          material={selectedMaterial.name}
+          materialId={selectedMaterial.id}
+          thickness={selectedThickness}
+          quantity={quantity}
+          fileId={uploadedFile?.file_id}
+          onSelect={(q) => {
+            toast.success(`Selected ${q.vendor_name}`);
+            if (q.vendor_slug) {
+              navigate(
+                `/upload?file_id=${uploadedFile?.file_id}&vendor=${q.vendor_slug}&material=${encodeURIComponent(
+                  selectedMaterial.name,
+                )}&thickness=${selectedThickness}`,
+              );
+            }
+          }}
+        />
       )}
 
       <button

@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   XAxis,
   YAxis,
@@ -10,25 +9,38 @@ import {
   Line,
   PieChart,
   Pie,
-  Cell
+  Cell,
+  Legend,
 } from 'recharts';
 import {
   TrendingUp,
   Package,
   Download,
-  ArrowLeft,
   Loader,
-  BarChart2
+  BarChart2,
 } from 'lucide-react';
 import { adminApi, AnalyticsData } from '../services';
 import { toast } from 'sonner';
+import { useCurrencyStore, formatPrice } from '../store/currencyStore';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const COLORS = ['#0ea5e9', '#22c55e', '#f59e0b', '#ef4444', '#6366f1', '#ec4899'];
 
+type RangeKey = '7d' | '30d' | '90d' | 'all';
+
+const RANGES: { key: RangeKey; label: string; days: number | null }[] = [
+  { key: '7d', label: 'Last 7 days', days: 7 },
+  { key: '30d', label: 'Last 30 days', days: 30 },
+  { key: '90d', label: 'Last 90 days', days: 90 },
+  { key: 'all', label: 'All time', days: null },
+];
+
 export const Analytics: React.FC = () => {
+  useDocumentTitle('Analytics — LaserHub');
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
+  const [range, setRange] = useState<RangeKey>('30d');
+  const { currency } = useCurrencyStore();
 
   useEffect(() => {
     loadAnalytics();
@@ -40,7 +52,6 @@ export const Analytics: React.FC = () => {
       setData(result);
     } catch (error) {
       toast.error('Failed to load analytics data');
-      navigate('/admin');
     } finally {
       setLoading(false);
     }
@@ -62,9 +73,20 @@ export const Analytics: React.FC = () => {
     }
   };
 
+  const filteredSales = useMemo(() => {
+    if (!data?.sales_over_time) return [];
+    const cfg = RANGES.find((r) => r.key === range);
+    if (!cfg?.days) return data.sales_over_time;
+    const cutoff = Date.now() - cfg.days * 24 * 60 * 60 * 1000;
+    return data.sales_over_time.filter((row: any) => {
+      const t = new Date(row.date).getTime();
+      return !Number.isNaN(t) && t >= cutoff;
+    });
+  }, [data, range]);
+
   if (loading) {
     return (
-      <div className="admin-dashboard loading">
+      <div className="adm-loading">
         <Loader className="spinner" size={32} />
         <p>Loading analytics...</p>
       </div>
@@ -72,66 +94,61 @@ export const Analytics: React.FC = () => {
   }
 
   return (
-    <div className="analytics-page animate-in">
-      <header className="analytics-header">
-        <div className="header-left">
-          <button onClick={() => navigate('/admin')} className="back-btn-icon">
-            <ArrowLeft size={18} />
-          </button>
-          <div className="header-title-group">
-            <div className="header-title-row">
-              <BarChart2 size={20} className="header-title-icon" />
-              <h1>Analytics</h1>
-            </div>
-            <p className="header-subtitle">Business insights and performance</p>
-          </div>
+    <div className="adm-page animate-in">
+      <header className="adm-page-header">
+        <div>
+          <h1 className="adm-page-title"><BarChart2 size={22} /> Analytics</h1>
+          <p className="adm-page-sub">Business insights and performance</p>
         </div>
-        <div className="analytics-actions">
-          <button onClick={handleExport} className="export-btn">
-            <Download size={15} />
-            Export
-          </button>
-        </div>
+        <button onClick={handleExport} className="adm-btn adm-btn--primary">
+          <Download size={15} /> Export CSV
+        </button>
       </header>
 
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon info">
-            <TrendingUp size={20} />
-          </div>
-          <div className="stat-info">
-            <p className="stat-label">Total Revenue</p>
-            <p className="stat-value">${data?.total_revenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+      <div className="adm-toolbar">
+        <div className="adm-filter-chips">
+          {RANGES.map((r) => (
+            <button
+              key={r.key}
+              className={`adm-chip ${range === r.key ? 'adm-chip--active' : ''}`}
+              onClick={() => setRange(r.key)}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="adm-stats-grid">
+        <div className="adm-stat-card">
+          <div className="adm-stat-icon adm-stat-icon--info"><TrendingUp size={20} /></div>
+          <div>
+            <p className="adm-stat-label">Total Revenue</p>
+            <p className="adm-stat-value">{formatPrice(data?.total_revenue || 0, currency)}</p>
           </div>
         </div>
-
-        <div className="stat-card">
-          <div className="stat-icon success">
-            <Package size={20} />
-          </div>
-          <div className="stat-info">
-            <p className="stat-label">Total Orders</p>
-            <p className="stat-value">{data?.total_orders}</p>
+        <div className="adm-stat-card">
+          <div className="adm-stat-icon adm-stat-icon--success"><Package size={20} /></div>
+          <div>
+            <p className="adm-stat-label">Total Orders</p>
+            <p className="adm-stat-value">{data?.total_orders || 0}</p>
           </div>
         </div>
-
-        <div className="stat-card">
-          <div className="stat-icon warning">
-            <TrendingUp size={20} />
-          </div>
-          <div className="stat-info">
-            <p className="stat-label">Avg. Order Value</p>
-            <p className="stat-value">${data?.average_order_value.toFixed(2)}</p>
+        <div className="adm-stat-card">
+          <div className="adm-stat-icon adm-stat-icon--warning"><TrendingUp size={20} /></div>
+          <div>
+            <p className="adm-stat-label">Avg. Order Value</p>
+            <p className="adm-stat-value">{formatPrice(data?.average_order_value || 0, currency)}</p>
           </div>
         </div>
       </div>
 
-      <div className="charts-grid">
-        <div className="chart-card card compact-card">
-          <h3>Revenue over Time</h3>
-          <div className="chart-container">
+      <div className="adm-charts-grid">
+        <div className="adm-card">
+          <h3 className="adm-card-title">Revenue over Time</h3>
+          <div className="adm-chart-container">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data?.sales_over_time}>
+              <LineChart data={filteredSales}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
                 <XAxis
                   dataKey="date"
@@ -142,16 +159,17 @@ export const Analytics: React.FC = () => {
                 <YAxis
                   tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }}
                   axisLine={{ stroke: 'var(--border-color)' }}
+                  tickFormatter={(v: number) => formatPrice(v, currency)}
                 />
                 <Tooltip
-                  formatter={(value: number) => [`$${value.toFixed(2)}`, 'Revenue']}
+                  formatter={(value: number) => [formatPrice(value, currency), 'Revenue']}
                   contentStyle={{
                     borderRadius: '8px',
                     border: '1px solid var(--border-color)',
                     boxShadow: 'var(--card-shadow)',
                     background: 'var(--bg-primary)',
                     color: 'var(--text-primary)',
-                    fontSize: '0.8rem'
+                    fontSize: '0.8rem',
                   }}
                 />
                 <Line
@@ -167,9 +185,9 @@ export const Analytics: React.FC = () => {
           </div>
         </div>
 
-        <div className="chart-card card compact-card">
-          <h3>Popular Materials</h3>
-          <div className="chart-container">
+        <div className="adm-card">
+          <h3 className="adm-card-title">Popular Materials</h3>
+          <div className="adm-chart-container">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -181,40 +199,62 @@ export const Analytics: React.FC = () => {
                   outerRadius={80}
                   innerRadius={50}
                   paddingAngle={4}
-                  label={({ material_name, percent }) => `${material_name} ${(percent * 100).toFixed(0)}%`}
+                  label={({ material_name, percent }: any) => `${material_name} ${(percent * 100).toFixed(0)}%`}
                 >
                   {data?.popular_materials.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip
+                  formatter={(value: number, name: string, props: any) => {
+                    const rev = props?.payload?.revenue;
+                    const revText = typeof rev === 'number' ? ` (${formatPrice(rev, currency)})` : '';
+                    return [`${value} orders${revText}`, name];
+                  }}
+                  contentStyle={{
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)',
+                    background: 'var(--bg-primary)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.8rem',
+                  }}
+                />
+                <Legend
+                  verticalAlign="bottom"
+                  height={36}
+                  iconType="circle"
+                  wrapperStyle={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}
+                />
               </PieChart>
             </ResponsiveContainer>
           </div>
         </div>
       </div>
 
-      <div className="analytics-tables">
-        <div className="table-card card compact-card">
-          <h3>Top Customers</h3>
-          <div className="orders-table-wrap">
-            <table className="orders-table">
+      <div className="adm-charts-grid">
+        <div className="adm-card">
+          <h3 className="adm-card-title">Top Customers</h3>
+          <div className="adm-table-wrap">
+            <table className="adm-table">
               <thead>
                 <tr>
                   <th>Customer</th>
                   <th>Orders</th>
-                  <th className="value-cell">Total Spent</th>
+                  <th>Total Spent</th>
                 </tr>
               </thead>
               <tbody>
+                {(data?.top_customers || []).length === 0 && (
+                  <tr><td colSpan={3} className="adm-empty-row">No customer data yet.</td></tr>
+                )}
                 {data?.top_customers.map((customer, idx) => (
                   <tr key={idx}>
                     <td>
-                      <div className="cell-bold">{customer.name}</div>
-                      <div className="cell-sub">{customer.email}</div>
+                      <div className="adm-cell-bold">{customer.name || '—'}</div>
+                      <div className="adm-cell-sub">{customer.email}</div>
                     </td>
-                    <td className="cell-medium">{customer.order_count}</td>
-                    <td className="value-cell cell-accent cell-bold">${customer.total_spent.toFixed(2)}</td>
+                    <td className="adm-cell-medium">{customer.order_count}</td>
+                    <td className="adm-cell-accent">{formatPrice(customer.total_spent, currency)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -222,23 +262,26 @@ export const Analytics: React.FC = () => {
           </div>
         </div>
 
-        <div className="table-card card compact-card">
-          <h3>Material Performance</h3>
-          <div className="orders-table-wrap">
-            <table className="orders-table">
+        <div className="adm-card">
+          <h3 className="adm-card-title">Material Performance</h3>
+          <div className="adm-table-wrap">
+            <table className="adm-table">
               <thead>
                 <tr>
                   <th>Material</th>
                   <th>Orders</th>
-                  <th className="value-cell">Revenue</th>
+                  <th>Revenue</th>
                 </tr>
               </thead>
               <tbody>
+                {(data?.popular_materials || []).length === 0 && (
+                  <tr><td colSpan={3} className="adm-empty-row">No material data yet.</td></tr>
+                )}
                 {data?.popular_materials.map((material, idx) => (
                   <tr key={idx}>
-                    <td className="cell-bold">{material.material_name}</td>
-                    <td className="cell-medium">{material.count}</td>
-                    <td className="value-cell cell-accent cell-bold">${material.revenue.toFixed(2)}</td>
+                    <td className="adm-cell-bold">{material.material_name}</td>
+                    <td className="adm-cell-medium">{material.count}</td>
+                    <td className="adm-cell-accent">{formatPrice(material.revenue, currency)}</td>
                   </tr>
                 ))}
               </tbody>

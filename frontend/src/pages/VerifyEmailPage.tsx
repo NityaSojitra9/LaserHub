@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { authApi } from '../services';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 export const VerifyEmailPage: React.FC = () => {
+  useDocumentTitle('Verify Email — LaserHub');
   const [searchParams] = useSearchParams();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const token = searchParams.get('token');

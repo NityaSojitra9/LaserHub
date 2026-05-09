@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 100" width="80mm" height="100mm">
+  <!-- Bail (loop at top) -->
+  <ellipse cx="40" cy="8" rx="6" ry="4" fill="none" stroke="#000" stroke-width="1.5"/>
+  <!-- Connecting element -->
+  <line x1="40" y1="12" x2="40" y2="22" stroke="#000" stroke-width="1.5"/>
+  <!-- Outer diamond shape -->
+  <polygon points="40,22 70,55 40,88 10,55" fill="none" stroke="#000" stroke-width="2"/>
+  <!-- Second inner diamond -->
+  <polygon points="40,30 62,55 40,80 18,55" fill="none" stroke="#000" stroke-width="1.2"/>
+  <!-- Third inner diamond -->
+  <polygon points="40,40 56,55 40,70 24,55" fill="none" stroke="#000" stroke-width="1"/>
+  <!-- Center star -->
+  <polygon points="40,48 43,52 47,52 44,55 45,59 40,57 35,59 36,55 33,52 37,52" fill="none" stroke="#000" stroke-width="0.8"/>
+  <!-- Corner accent dots (holes) -->
+  <circle cx="40" cy="22" r="1.5" fill="none" stroke="#000" stroke-width="0.8"/>
+  <circle cx="70" cy="55" r="1.5" fill="none" stroke="#000" stroke-width="0.8"/>
+  <circle cx="40" cy="88" r="1.5" fill="none" stroke="#000" stroke-width="0.8"/>
+  <circle cx="10" cy="55" r="1.5" fill="none" stroke="#000" stroke-width="0.8"/>
+  <!-- Diagonal line details -->
+  <line x1="30" y1="38" x2="50" y2="38" stroke="#000" stroke-width="0.8"/>
+  <line x1="26" y1="45" x2="54" y2="45" stroke="#000" stroke-width="0.8"/>
+  <line x1="26" y1="65" x2="54" y2="65" stroke="#000" stroke-width="0.8"/>
+  <line x1="30" y1="72" x2="50" y2="72" stroke="#000" stroke-width="0.8"/>
+</svg>

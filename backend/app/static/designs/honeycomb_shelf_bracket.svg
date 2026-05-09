@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 120" width="180mm" height="120mm">
+  <!-- Shelf bracket L-shape outline -->
+  <path d="M10,10 L170,10 L170,50 L60,50 L60,110 L10,110 Z" fill="none" stroke="#000" stroke-width="2"/>
+  <!-- Honeycomb cutouts in horizontal arm -->
+  <!-- Row 1 hex pattern -->
+  <polygon points="35,20 43,25 43,35 35,40 27,35 27,25" fill="none" stroke="#000" stroke-width="1"/>
+  <polygon points="60,20 68,25 68,35 60,40 52,35 52,25" fill="none" stroke="#000" stroke-width="1"/>
+  <polygon points="85,20 93,25 93,35 85,40 77,35 77,25" fill="none" stroke="#000" stroke-width="1"/>
+  <polygon points="110,20 118,25 118,35 110,40 102,35 102,25" fill="none" stroke="#000" stroke-width="1"/>
+  <polygon points="135,20 143,25 143,35 135,40 127,35 127,25" fill="none" stroke="#000" stroke-width="1"/>
+  <polygon points="160,20 168,25 168,35 160,40 152,35 152,25" fill="none" stroke="#000" stroke-width="1"/>
+  <!-- Hexes offset row -->
+  <polygon points="47.5,10 55.5,15 55.5,25 47.5,30 39.5,25 39.5,15" fill="none" stroke="#000" stroke-width="1"/>
+  <polygon points="72.5,10 80.5,15 80.5,25 72.5,30 64.5,25 64.5,15" fill="none" stroke="#000" stroke-width="1"/>
+  <polygon points="97.5,10 105.5,15 105.5,25 97.5,30 89.5,25 89.5,15" fill="none" stroke="#000" stroke-width="1"/>
+  <polygon points="122.5,10 130.5,15 130.5,25 122.5,30 114.5,25 114.5,15" fill="none" stroke="#000" stroke-width="1"/>
+  <polygon points="147.5,10 155.5,15 155.5,25 147.5,30 139.5,25 139.5,15" fill="none" stroke="#000" stroke-width="1"/>
+  <!-- Honeycomb cutouts in vertical arm -->
+  <polygon points="25,60 33,65 33,75 25,80 17,75 17,65" fill="none" stroke="#000" stroke-width="1"/>
+  <polygon points="45,60 53,65 53,75 45,80 37,75 37,65" fill="none" stroke="#000" stroke-width="1"/>
+  <polygon points="25,85 33,90 33,100 25,105 17,100 17,90" fill="none" stroke="#000" stroke-width="1"/>
+  <polygon points="45,85 53,90 53,100 45,105 37,100 37,90" fill="none" stroke="#000" stroke-width="1"/>
+  <!-- Mounting holes -->
+  <circle cx="150" cy="30" r="4" fill="none" stroke="#000" stroke-width="1"/>
+  <circle cx="35" cy="95" r="4" fill="none" stroke="#000" stroke-width="1"/>
+</svg>

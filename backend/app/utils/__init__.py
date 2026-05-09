@@ -2,6 +2,22 @@
 Utils module initialization
 """
 
-from app.utils.file_parser import parse_dxf, parse_generic, parse_svg
+from app.utils.file_parser import (
+    FileFormatError,
+    parse_ai,
+    parse_dxf,
+    parse_eps,
+    parse_generic,
+    parse_pdf,
+    parse_svg,
+)
 
-__all__ = ["parse_dxf", "parse_svg", "parse_generic"]
+__all__ = [
+    "FileFormatError",
+    "parse_ai",
+    "parse_dxf",
+    "parse_eps",
+    "parse_generic",
+    "parse_pdf",
+    "parse_svg",
+]

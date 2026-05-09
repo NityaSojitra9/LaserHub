@@ -4,19 +4,25 @@ Admin API endpoints
 
 import csv
 import io
+import logging
 from datetime import datetime, timedelta
 from typing import List
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+import fastapi
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+logger = logging.getLogger(__name__)
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.security import create_access_token
-from app.models import AppSetting, Material, Order, UploadedFile
+from app.core.security import create_access_token, decode_access_token, verify_password
+from app.middleware.rate_limiter import limiter
+from app.models import AppSetting, Material, Order, UploadedFile, User
 from app.schemas import (
     AdminToken,
     AnalyticsData,
@@ -64,38 +70,71 @@ async def _build_order_response(order: Order, db: AsyncSession) -> OrderResponse
 
 
 async def get_current_admin(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)):
-    """Get current admin user from token"""
-    # For simplicity, we're using a basic token validation
-    # In production, implement proper JWT validation
-    from jose import jwt
+    """Validate admin JWT token.
 
+    Accepts:
+    - Admin tokens (role=admin, email matches ADMIN_EMAIL)
+    - Vendor/super_admin user tokens (looked up in DB by email)
+    """
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = decode_access_token(token)
         email = payload.get("sub")
+        role = payload.get("role")
 
-        if email != settings.ADMIN_EMAIL:
+        if not email:
             raise HTTPException(status_code=401, detail="Not authorized")
 
-        return email
+        # Legacy admin login (role=admin in JWT)
+        if role == "admin" and email == settings.ADMIN_EMAIL:
+            return email
+
+        # User-based access: check if user is vendor or super_admin
+        if role == "user":
+            from app.models import User as UserModel
+            result = await db.execute(select(UserModel).where(UserModel.email == email))
+            user = result.scalar_one_or_none()
+            if user and user.role in ("vendor", "super_admin"):
+                return email
+            # Also allow super admin email directly
+            if email == settings.SUPER_ADMIN_EMAIL:
+                return email
+
+        raise HTTPException(status_code=401, detail="Not authorized")
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
 @router.post("/login", response_model=AdminToken)
-async def admin_login(form_data: OAuth2PasswordRequestForm = Depends()):
+@limiter.limit("5 per minute")
+async def admin_login(
+    request: Request,
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: AsyncSession = Depends(get_db),
+):
     """
-    Admin login endpoint
+    Admin login endpoint — rate limited to 5 attempts per minute per IP.
+
+    Verifies the submitted password against the bcrypt hash stored on the
+    admin User row (bootstrapped at startup by init_admin_user). The plaintext
+    ADMIN_PASSWORD env var is no longer compared at request time.
     """
-    # Check credentials
+    # Only the configured admin email can use this endpoint
     if form_data.username != settings.ADMIN_EMAIL:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
         )
 
-    # For initial setup, use plain password comparison
-    # In production, use hashed passwords from database
-    if form_data.password != settings.ADMIN_PASSWORD:
+    result = await db.execute(select(User).where(User.email == form_data.username))
+    admin_user = result.scalar_one_or_none()
+
+    if (
+        not admin_user
+        or not admin_user.hashed_password
+        or not verify_password(form_data.password, admin_user.hashed_password)
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -126,9 +165,9 @@ async def get_dashboard(
     )
     pending_orders = pending_orders_result.scalar() or 0
 
-    # Total revenue
+    # Total revenue (sum of all non-cancelled orders)
     revenue_result = await db.execute(
-        select(func.sum(Order.total_amount)).where(Order.payment_status == "paid")
+        select(func.sum(Order.total_amount)).where(Order.status != "cancelled")
     )
     total_revenue = revenue_result.scalar() or 0
 
@@ -136,7 +175,7 @@ async def get_dashboard(
     month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     monthly_revenue_result = await db.execute(
         select(func.sum(Order.total_amount)).where(
-            Order.payment_status == "paid",
+            Order.status != "cancelled",
             Order.created_at >= month_start
         )
     )
@@ -164,12 +203,21 @@ async def get_dashboard(
 @router.get("/orders", response_model=List[OrderResponse])
 async def list_all_orders(
     status_filter: str = None,
-    limit: int = 100,
+    limit: int = Query(default=100, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
     admin: str = Depends(get_current_admin)
 ):
     """List all orders (admin only)"""
-    query = select(Order).order_by(desc(Order.created_at)).limit(limit)
+    # PERF-DB-01: eager-load material + uploaded_file to avoid N+1 per-row queries
+    query = (
+        select(Order)
+        .options(
+            selectinload(Order.material),
+            selectinload(Order.uploaded_file),
+        )
+        .order_by(desc(Order.created_at))
+        .limit(limit)
+    )
 
     if status_filter:
         query = query.where(Order.status == status_filter)
@@ -179,9 +227,110 @@ async def list_all_orders(
 
     order_responses = []
     for order in orders:
-        order_responses.append(await _build_order_response(order, db))
+        material = order.material
+        uploaded_file = order.uploaded_file
+        order_responses.append(OrderResponse(
+            id=order.id,
+            order_number=order.order_number,
+            file_id=uploaded_file.file_id if uploaded_file else str(order.file_id),
+            material_name=material.name if material else "Unknown",
+            thickness_mm=order.thickness_mm,
+            quantity=order.quantity,
+            total_amount=order.total_amount,
+            status=order.status,
+            customer_email=order.customer_email,
+            customer_name=order.customer_name,
+            shipping_address=order.shipping_address,
+            created_at=order.created_at,
+            updated_at=order.updated_at,
+        ))
 
     return order_responses
+
+
+VALID_STATUSES = {"pending", "accepted", "paid", "in_production", "shipped", "completed", "cancelled"}
+
+# Kanban columns map (we collapse "paid" under "accepted" for the board display)
+KANBAN_COLUMNS = ["pending", "accepted", "in_production", "shipped", "completed", "cancelled"]
+
+
+@router.get("/orders/kanban")
+async def get_orders_kanban(
+    db: AsyncSession = Depends(get_db),
+    admin: str = Depends(get_current_admin),
+):
+    """Return all orders grouped by status for the Kanban board."""
+    result = await db.execute(select(Order).order_by(desc(Order.created_at)))
+    orders = result.scalars().all()
+
+    # Prefetch materials / files
+    mat_map = {}
+    file_map = {}
+    if orders:
+        mat_ids = {o.material_id for o in orders}
+        file_ids = {o.file_id for o in orders}
+        mres = await db.execute(select(Material).where(Material.id.in_(mat_ids)))
+        for m in mres.scalars().all():
+            mat_map[m.id] = m
+        fres = await db.execute(select(UploadedFile).where(UploadedFile.id.in_(file_ids)))
+        for f in fres.scalars().all():
+            file_map[f.id] = f
+
+    columns = {col: [] for col in KANBAN_COLUMNS}
+
+    for o in orders:
+        # Collapse "paid" status into "accepted" bucket for kanban display
+        bucket = o.status
+        if bucket == "paid":
+            bucket = "accepted"
+        if bucket not in columns:
+            # Unknown statuses fall into pending
+            bucket = "pending"
+
+        mat = mat_map.get(o.material_id)
+        card = {
+            "id": o.id,
+            "order_number": o.order_number,
+            "customer_name": o.customer_name,
+            "customer_email": o.customer_email,
+            "total_amount": o.total_amount,
+            "material_name": mat.name if mat else "Unknown",
+            "thickness_mm": o.thickness_mm,
+            "quantity": o.quantity,
+            "status": o.status,
+            "deadline": None,  # reserved — order model has no deadline yet
+            "notes": o.notes,
+            "carrier": o.carrier,
+            "tracking_number": o.tracking_number,
+            "created_at": o.created_at.isoformat() if o.created_at else None,
+            "updated_at": o.updated_at.isoformat() if o.updated_at else None,
+        }
+        columns[bucket].append(card)
+
+    return columns
+
+
+@router.patch("/orders/{order_id}/status")
+async def patch_order_status(
+    order_id: int,
+    payload: dict = Body(...),
+    db: AsyncSession = Depends(get_db),
+    admin: str = Depends(get_current_admin),
+):
+    """Change an order's status (used by the Kanban drag-and-drop)."""
+    new_status = (payload or {}).get("status")
+    if not new_status or new_status not in VALID_STATUSES:
+        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of {sorted(VALID_STATUSES)}")
+
+    result = await db.execute(select(Order).where(Order.id == order_id))
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    order.status = new_status
+    await db.commit()
+    await db.refresh(order)
+    return {"id": order.id, "status": order.status}
 
 
 @router.get("/orders/{order_id}", response_model=OrderResponse)
@@ -233,7 +382,19 @@ async def update_order(
     await db.commit()
     await db.refresh(order)
 
-    # Send notifications in background
+    # Send push notification to the customer if they have a linked account
+    if update_data.status and update_data.status.value != old_status and order.user_id:
+        from app.api.notifications import send_push_notification_bg
+        status_label = update_data.status.value.replace("_", " ").title()
+        background_tasks.add_task(
+            send_push_notification_bg,
+            order.user_id,
+            "Order Status Updated",
+            f"Your order {order.order_number} is now: {status_label}",
+            "/profile",
+        )
+
+    # Send email notifications in background
     if update_data.status and update_data.status.value != old_status:
         if update_data.status.value in ["in_production", "completed", "cancelled"]:
             background_tasks.add_task(
@@ -325,11 +486,11 @@ async def get_analytics(
         for row in customer_result.all()
     ]
 
-    # 4. Global metrics
+    # 4. Global metrics (exclude cancelled orders from revenue)
     total_metrics_query = select(
         func.count(Order.id).label("total_orders"),
         func.sum(Order.total_amount).label("total_revenue")
-    )
+    ).where(Order.status != "cancelled")
     total_metrics_result = await db.execute(total_metrics_query)
     row = total_metrics_result.one()
     total_orders = row.total_orders or 0
@@ -418,7 +579,7 @@ async def get_settings(
 
 @router.put("/settings")
 async def update_settings(
-    settings_data: list,
+    settings_data: list = Body(...),
     db: AsyncSession = Depends(get_db),
     admin: str = Depends(get_current_admin)
 ):
@@ -432,8 +593,12 @@ async def update_settings(
         if not key:
             continue
 
-        # Skip if value is the masked placeholder
+        # Skip if value is the masked placeholder — secret wasn't changed
         if value == "••••••••":
+            continue
+
+        # Skip empty values for secret fields — don't overwrite with blank
+        if is_secret and (value is None or value == ""):
             continue
 
         result = await db.execute(select(AppSetting).where(AppSetting.key == key))
@@ -450,6 +615,219 @@ async def update_settings(
     return {"status": "updated"}
 
 
+@router.get("/financials/summary")
+async def financials_summary(
+    db: AsyncSession = Depends(get_db),
+    admin: str = Depends(get_current_admin),
+):
+    """Aggregate revenue/profit/cost metrics for the vendor back-office."""
+    now = datetime.utcnow()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start = today_start - timedelta(days=7)
+    month_start = today_start.replace(day=1)
+    year_start = today_start.replace(month=1, day=1)
+    thirty_days_ago = today_start - timedelta(days=29)
+
+    async def _sum_count(start):
+        q = select(
+            func.sum(Order.total_amount),
+            func.count(Order.id),
+        ).where(Order.status != "cancelled", Order.created_at >= start)
+        r = (await db.execute(q)).one()
+        return float(r[0] or 0), int(r[1] or 0)
+
+    today_rev, today_count = await _sum_count(today_start)
+    week_rev, week_count = await _sum_count(week_start)
+    month_rev, month_count = await _sum_count(month_start)
+    year_rev, year_count = await _sum_count(year_start)
+
+    totals_q = select(
+        func.sum(Order.total_amount),
+        func.sum(Order.material_cost),
+        func.sum(Order.laser_time_cost),
+        func.sum(Order.energy_cost),
+        func.count(Order.id),
+    ).where(Order.status != "cancelled")
+    trow = (await db.execute(totals_q)).one()
+    total_rev = float(trow[0] or 0)
+    total_mat = float(trow[1] or 0)
+    total_laser = float(trow[2] or 0)
+    total_energy = float(trow[3] or 0)
+    total_orders = int(trow[4] or 0)
+    total_cogs = total_mat + total_laser + total_energy
+    profit = total_rev - total_cogs
+    profit_margin_pct = (profit / total_rev * 100.0) if total_rev else 0.0
+    avg_order_value = (total_rev / total_orders) if total_orders else 0.0
+
+    by_mat_q = (
+        select(
+            Material.name.label("name"),
+            func.sum(Order.material_cost).label("material_cost"),
+            func.sum(Order.laser_time_cost).label("laser_cost"),
+            func.sum(Order.energy_cost).label("energy_cost"),
+        )
+        .join(Order, Material.id == Order.material_id)
+        .where(Order.status != "cancelled")
+        .group_by(Material.name)
+        .order_by(desc("material_cost"))
+        .limit(10)
+    )
+    by_mat = [
+        {
+            "name": r.name,
+            "total": float((r.material_cost or 0) + (r.laser_cost or 0) + (r.energy_cost or 0)),
+        }
+        for r in (await db.execute(by_mat_q)).all()
+    ]
+
+    cust_q = (
+        select(
+            Order.customer_email.label("email"),
+            Order.customer_name.label("name"),
+            func.count(Order.id).label("order_count"),
+            func.sum(Order.total_amount).label("total_spent"),
+        )
+        .where(Order.status != "cancelled")
+        .group_by(Order.customer_email, Order.customer_name)
+        .order_by(desc("total_spent"))
+        .limit(10)
+    )
+    top_customers = [
+        {
+            "name": r.name,
+            "email": r.email,
+            "order_count": int(r.order_count or 0),
+            "total_spent": float(r.total_spent or 0),
+        }
+        for r in (await db.execute(cust_q)).all()
+    ]
+
+    tl_q = (
+        select(
+            func.strftime("%Y-%m-%d", Order.created_at).label("date"),
+            func.sum(Order.total_amount).label("revenue"),
+        )
+        .where(Order.status != "cancelled", Order.created_at >= thirty_days_ago)
+        .group_by("date")
+        .order_by("date")
+    )
+    revenue_timeline = [
+        {"date": r.date, "revenue": float(r.revenue or 0)}
+        for r in (await db.execute(tl_q)).all()
+    ]
+
+    pm_q = (
+        select(
+            Order.payment_intent_id.label("pid"),
+            func.sum(Order.total_amount).label("total"),
+        )
+        .where(Order.status != "cancelled")
+        .group_by(Order.payment_intent_id)
+    )
+    buckets = {"stripe": 0.0, "razorpay": 0.0, "other": 0.0}
+    for r in (await db.execute(pm_q)).all():
+        pid = (r.pid or "").lower()
+        total = float(r.total or 0)
+        if pid.startswith("pi_"):
+            buckets["stripe"] += total
+        elif pid.startswith("pay_") or pid.startswith("order_"):
+            buckets["razorpay"] += total
+        else:
+            buckets["other"] += total
+    payment_methods = [{"method": k, "total": v} for k, v in buckets.items() if v > 0]
+
+    return {
+        "revenue": {
+            "today": today_rev,
+            "week": week_rev,
+            "month": month_rev,
+            "year": year_rev,
+        },
+        "profit": profit,
+        "profit_margin_pct": round(profit_margin_pct, 2),
+        "cogs": {
+            "total": total_cogs,
+            "material": total_mat,
+            "laser": total_laser,
+            "energy": total_energy,
+            "by_material": by_mat,
+        },
+        "orders_count": {
+            "today": today_count,
+            "week": week_count,
+            "month": month_count,
+            "year": year_count,
+            "total": total_orders,
+        },
+        "avg_order_value": avg_order_value,
+        "top_customers": top_customers,
+        "revenue_timeline": revenue_timeline,
+        "payment_methods": payment_methods,
+    }
+
+
+@router.get("/financials/tax-report")
+async def financials_tax_report(
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: AsyncSession = Depends(get_db),
+    admin: str = Depends(get_current_admin),
+):
+    """CSV download of orders within a date range, with tax breakdown.
+
+    Tax is derived as total_amount - (subtotal + setup_fee) so it works
+    even when tax isn't stored as its own column.
+    """
+    query = select(Order).where(Order.status != "cancelled")
+    if start_date:
+        try:
+            query = query.where(Order.created_at >= datetime.fromisoformat(start_date))
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid start_date (use YYYY-MM-DD)")
+    if end_date:
+        try:
+            end_dt = datetime.fromisoformat(end_date) + timedelta(days=1)
+            query = query.where(Order.created_at < end_dt)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid end_date (use YYYY-MM-DD)")
+
+    result = await db.execute(query.order_by(desc(Order.created_at)))
+    orders = result.scalars().all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "Order Number", "Date", "Customer", "Email", "Subtotal",
+        "Material Cost", "Laser Cost", "Energy Cost", "Setup Fee",
+        "Tax", "Total", "Status",
+    ])
+    for o in orders:
+        subtotal = (o.material_cost or 0) + (o.laser_time_cost or 0) + (o.energy_cost or 0) + (o.setup_fee or 0)
+        tax = max(0.0, (o.total_amount or 0) - subtotal)
+        writer.writerow([
+            o.order_number,
+            o.created_at.strftime("%Y-%m-%d") if o.created_at else "",
+            o.customer_name,
+            o.customer_email,
+            f"{subtotal:.2f}",
+            f"{o.material_cost or 0:.2f}",
+            f"{o.laser_time_cost or 0:.2f}",
+            f"{o.energy_cost or 0:.2f}",
+            f"{o.setup_fee or 0:.2f}",
+            f"{tax:.2f}",
+            f"{o.total_amount or 0:.2f}",
+            o.status,
+        ])
+
+    output.seek(0)
+    filename = f"tax_report_{start_date or 'all'}_{end_date or 'all'}.csv"
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
 @router.post("/settings/seed-payment")
 async def seed_payment_settings(
     db: AsyncSession = Depends(get_db),
@@ -458,11 +836,17 @@ async def seed_payment_settings(
     """Initialize default payment settings keys"""
     defaults = [
         {"key": "payment_gateway", "value": "stripe", "category": "payment", "is_secret": False},
+        # Stripe
+        {"key": "stripe_enabled", "value": "true", "category": "payment", "is_secret": False},
         {"key": "stripe_public_key", "value": "", "category": "payment", "is_secret": False},
         {"key": "stripe_secret_key", "value": "", "category": "payment", "is_secret": True},
         {"key": "stripe_webhook_secret", "value": "", "category": "payment", "is_secret": True},
+        # Razorpay
+        {"key": "razorpay_enabled", "value": "false", "category": "payment", "is_secret": False},
         {"key": "razorpay_key_id", "value": "", "category": "payment", "is_secret": False},
         {"key": "razorpay_key_secret", "value": "", "category": "payment", "is_secret": True},
+        {"key": "razorpay_webhook_secret", "value": "", "category": "payment", "is_secret": True},
+        # General
         {"key": "currency", "value": "usd", "category": "payment", "is_secret": False},
         {"key": "tax_rate", "value": "0.08", "category": "payment", "is_secret": False},
     ]

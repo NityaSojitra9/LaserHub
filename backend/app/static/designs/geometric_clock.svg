@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200mm" height="200mm">
+  <!-- Outer ring -->
+  <circle cx="100" cy="100" r="95" fill="none" stroke="#000" stroke-width="2"/>
+  <!-- Inner ring -->
+  <circle cx="100" cy="100" r="85" fill="none" stroke="#000" stroke-width="1"/>
+  <!-- Hour markers (12 triangles) -->
+  <line x1="100" y1="8" x2="100" y2="22" stroke="#000" stroke-width="2"/>
+  <line x1="100" y1="178" x2="100" y2="192" stroke="#000" stroke-width="2"/>
+  <line x1="8" y1="100" x2="22" y2="100" stroke="#000" stroke-width="2"/>
+  <line x1="178" y1="100" x2="192" y2="100" stroke="#000" stroke-width="2"/>
+  <!-- Diagonal hour marks -->
+  <line x1="148.3" y1="15.4" x2="142.2" y2="25.8" stroke="#000" stroke-width="2"/>
+  <line x1="184.6" y1="51.7" x2="174.2" y2="57.8" stroke="#000" stroke-width="2"/>
+  <line x1="184.6" y1="148.3" x2="174.2" y2="142.2" stroke="#000" stroke-width="2"/>
+  <line x1="148.3" y1="184.6" x2="142.2" y2="174.2" stroke="#000" stroke-width="2"/>
+  <line x1="51.7" y1="184.6" x2="57.8" y2="174.2" stroke="#000" stroke-width="2"/>
+  <line x1="15.4" y1="148.3" x2="25.8" y2="142.2" stroke="#000" stroke-width="2"/>
+  <line x1="15.4" y1="51.7" x2="25.8" y2="57.8" stroke="#000" stroke-width="2"/>
+  <line x1="51.7" y1="15.4" x2="57.8" y2="25.8" stroke="#000" stroke-width="2"/>
+  <!-- Center geometric star -->
+  <polygon points="100,60 108,92 140,100 108,108 100,140 92,108 60,100 92,92" fill="none" stroke="#000" stroke-width="1.5"/>
+  <!-- Center hole for clock mechanism (14mm shaft) -->
+  <circle cx="100" cy="100" r="4" fill="none" stroke="#000" stroke-width="1"/>
+  <!-- Decorative inner hexagon -->
+  <polygon points="100,72 125.4,86 125.4,114 100,128 74.6,114 74.6,86" fill="none" stroke="#000" stroke-width="1"/>
+</svg>

@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom';
 import { authApi } from '../services';
 import { Mail, ArrowLeft, Send, Loader2, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 export const ForgotPasswordPage: React.FC = () => {
+  useDocumentTitle('Forgot Password — LaserHub');
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSent, setIsSent] = useState(false);

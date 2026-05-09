@@ -1,0 +1,81 @@
+/* Footer update */
+.footer-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.footer-brand {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.footer-brand a {
+  color: var(--accent-color);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.footer-links {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.footer-links a {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.footer-links a:hover {
+  color: var(--accent-color);
+}
+
+.footer-copy {
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+}
+
+.footer-ecosystem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 8px 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color, rgba(255,255,255,0.1));
+}
+.footer-eco-label {
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+.footer-ecosystem a {
+  font-size: 0.65rem;
+  color: var(--text-secondary, #94a3b8);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.footer-ecosystem a:hover {
+  color: var(--primary, #0ea5e9);
+}
+
+.footer-more-tools {
+  margin: 8px 0;
+  text-align: center;
+}
+.footer-more-tools summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+.footer-more-tools summary::-webkit-details-marker { display: none; }
+.footer-more-tools summary::marker { content: ''; }
+

@@ -88,6 +88,11 @@ MATERIALS = [
 
 async def seed_database():
     """Seed the database with initial materials"""
+    if settings.ENVIRONMENT.lower() != "development":
+        raise SystemExit(
+            f"Seed scripts are development-only. Current ENVIRONMENT={settings.ENVIRONMENT}. "
+            "Set ENVIRONMENT=development to run."
+        )
 
     # Create engine and tables
     engine = create_async_engine(settings.DATABASE_URL, echo=True)
@@ -129,6 +134,11 @@ async def seed_database():
         print("\n✓ Database seeded successfully!")
 
 
+# Alias so this script can be invoked as `seed_data.main()` per the
+# repo-wide seed-script convention (SEED-01).
+main = seed_database
+
+
 if __name__ == "__main__":
     print("Seeding LaserHub database...")
-    asyncio.run(seed_database())
+    asyncio.run(main())

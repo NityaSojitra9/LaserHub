@@ -90,3 +90,11 @@ htmlcov/
 coverage.xml
 *.cover
 *.py,cover
+.claude/
+
+# Local-only / scratch directories
+test-images/
+test-files/
+.playwright-mcp/
+.git.corrupted-backup/
+

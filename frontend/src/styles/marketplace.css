@@ -1,0 +1,757 @@
+/* ==========================================================================
+   MARKETPLACE STYLES
+   ========================================================================== */
+
+/* Hero */
+.mp-hero {
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(255,255,255,0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(255,255,255,0.06) 0%, transparent 40%),
+    linear-gradient(135deg, #1e40af 0%, var(--primary-color, #2563eb) 40%, var(--accent-color) 100%);
+  padding: 3rem 1.5rem 2.5rem;
+  text-align: center;
+  color: white;
+  border-radius: 0 0 24px 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.mp-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(255,255,255,0.015) 40px, rgba(255,255,255,0.015) 41px),
+    repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(255,255,255,0.015) 40px, rgba(255,255,255,0.015) 41px);
+  pointer-events: none;
+}
+
+.mp-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.mp-hero h1 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  margin-bottom: 0.35rem;
+  letter-spacing: -0.02em;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.mp-hero > .mp-hero-content > p {
+  font-size: 0.85rem;
+  opacity: 0.9;
+  margin-bottom: 1.25rem;
+}
+
+.mp-search-bar {
+  display: flex;
+  align-items: center;
+  background: rgba(255,255,255,0.1);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 10px;
+  padding: 0.5rem 0.6rem;
+  max-width: 560px;
+  margin: 0 auto 1.25rem;
+  gap: 0.5rem;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.mp-search-bar:focus-within {
+  background: rgba(255,255,255,0.18);
+  border-color: rgba(255,255,255,0.35);
+}
+
+.mp-search-bar input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.mp-search-bar input::placeholder {
+  color: rgba(255,255,255,0.6);
+}
+
+.mp-search-bar button {
+  padding: 0.4rem 1.1rem;
+  background: rgba(255,255,255,0.92);
+  color: var(--primary-color, #2563eb);
+  border: none;
+  border-radius: 7px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.mp-search-bar button:hover {
+  background: white;
+  transform: scale(1.02);
+}
+
+.mp-hero-stats {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
+
+.mp-hero-stats span {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* Quick Actions */
+.mp-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  max-width: 900px;
+  margin: -1.5rem auto 0;
+  position: relative;
+  z-index: 2;
+  align-items: stretch;
+}
+
+.mp-action-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.15rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--text-primary);
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  overflow: hidden;
+}
+
+.mp-action-card:hover {
+  border-color: var(--accent-color);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+}
+
+.mp-action-card svg:first-child {
+  color: var(--accent-color);
+  flex-shrink: 0;
+}
+
+.mp-action-card svg:last-child {
+  margin-left: auto;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+
+.mp-action-card:hover svg:last-child {
+  transform: translateX(2px);
+}
+
+.mp-action-card h3 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.mp-action-card p {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin: 0.15rem 0 0;
+  line-height: 1.35;
+}
+
+/* Sections */
+.mp-section {
+  padding: 1.25rem 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.mp-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.mp-section-header h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.mp-section-header a {
+  font-size: 0.75rem;
+  color: var(--accent-color);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: 600;
+}
+
+/* Categories */
+.mp-categories {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 0.5rem;
+}
+
+.mp-category-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.85rem 0.5rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: all 0.15s;
+  min-height: 72px;
+  justify-content: center;
+}
+
+.mp-category-card:hover {
+  border-color: var(--accent-color);
+  background: rgba(14, 165, 233, 0.05);
+  transform: translateY(-1px);
+}
+
+.mp-cat-icon {
+  font-size: 1.5rem;
+}
+
+/* Design Grid */
+.mp-design-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1.25rem;
+  align-items: stretch;
+}
+
+.mp-design-grid.browse-grid {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* Wrapper becomes the visible card so tags can sit inside the card boundary */
+.mp-design-card-wrapper {
+  display: flex;
+  flex-direction: column;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.15s ease;
+  height: 100%;
+}
+
+.mp-design-card-wrapper:hover {
+  border-color: var(--accent-color);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+}
+
+.mp-design-card {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  text-decoration: none;
+  color: var(--text-primary);
+}
+
+/* Inside-card tags row — sits below the Link as part of the card */
+.mp-design-card-wrapper .mp-design-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  padding: 0 1rem 0.85rem 1rem;
+  margin: 0;
+}
+
+.mp-design-thumb {
+  aspect-ratio: 16 / 10;
+  max-height: 140px;
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.mp-design-thumb.compact {
+  aspect-ratio: unset;
+  height: 140px;
+}
+
+/* Category-based gradient backgrounds for placeholders */
+.mp-design-thumb.cat-art {
+  background: linear-gradient(135deg, rgba(244, 114, 182, 0.1), rgba(251, 146, 60, 0.1));
+}
+.mp-design-thumb.cat-mechanical {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(99, 102, 241, 0.1));
+}
+.mp-design-thumb.cat-jewelry {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.1));
+}
+.mp-design-thumb.cat-signage {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(16, 185, 129, 0.1));
+}
+.mp-design-thumb.cat-home_decor {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(192, 132, 252, 0.1));
+}
+.mp-design-thumb.cat-packaging {
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.1), rgba(234, 88, 12, 0.1));
+}
+.mp-design-thumb.cat-stencils {
+  background: linear-gradient(135deg, rgba(100, 116, 139, 0.1), rgba(148, 163, 184, 0.1));
+}
+.mp-design-thumb.cat-educational {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.08), rgba(37, 99, 235, 0.08));
+}
+
+.mp-design-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #ffffff;
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.mp-design-placeholder {
+  color: var(--text-tertiary);
+  opacity: 0.35;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mp-design-placeholder svg {
+  width: 40px;
+  height: 40px;
+}
+
+.mp-cat-pill {
+  position: absolute;
+  bottom: 0.4rem;
+  left: 0.4rem;
+  background: rgba(0, 0, 0, 0.55);
+  color: white;
+  font-size: 0.6rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 10px;
+  text-transform: capitalize;
+  backdrop-filter: blur(4px);
+}
+
+.mp-badge {
+  position: absolute;
+  top: 0.4rem;
+  left: 0.4rem;
+  background: var(--accent-color);
+  color: white;
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.mp-design-info {
+  padding: 0.85rem 1rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.mp-design-info h4 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin: 0 0 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.mp-design-desc {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin: 0 0 0.35rem;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.mp-design-creator {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin: 0 0 0.5rem;
+}
+
+.mp-design-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: auto;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.mp-design-meta span {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.mp-price {
+  color: var(--accent-color);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+/* Vendor Grid */
+.mp-vendor-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.mp-vendor-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--text-primary);
+  transition: all 0.15s;
+  overflow: hidden;
+}
+
+.mp-vendor-card:hover {
+  border-color: var(--accent-color);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.mp-vendor-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent-color), var(--primary-color, #2563eb));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 800;
+  font-size: 1rem;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.mp-vendor-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mp-vendor-info h4 {
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin: 0 0 0.2rem;
+}
+
+.mp-vendor-meta {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+}
+
+.mp-vendor-meta span {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+/* ============================================================
+   Ready-to-Buy listings — product-card layout
+   Large top thumbnail, body with title + meta, price + CTA footer.
+   Replaces the old compact row with 48px thumb.
+   ============================================================ */
+.mp-listings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.25rem;
+}
+
+.mp-listing-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  position: relative;
+}
+
+.mp-listing-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px -12px rgba(0, 0, 0, 0.18);
+  border-color: var(--color-primary, var(--accent-color));
+}
+
+.mp-listing-card:focus-visible {
+  outline: 2px solid var(--color-primary, var(--accent-color));
+  outline-offset: 2px;
+}
+
+/* Thumbnail hero */
+.public-listing-thumb {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: linear-gradient(135deg, #f8fafc 0%, #eef2f7 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.public-listing-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 12px;
+  transition: transform 0.25s ease;
+}
+
+.mp-listing-card:hover .public-listing-thumb img {
+  transform: scale(1.04);
+}
+
+.public-listing-thumb-placeholder {
+  color: var(--text-tertiary, #9ca3af);
+  opacity: 0.6;
+}
+
+.public-listing-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(15, 23, 42, 0.82);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 3px 9px;
+  border-radius: 999px;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* Card body */
+.public-listing-body {
+  padding: 0.85rem 1rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.public-listing-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 0;
+  color: var(--text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.public-listing-vendor {
+  font-size: 0.75rem;
+  color: var(--text-tertiary, #9ca3af);
+  margin: 0;
+  font-style: normal !important;
+}
+
+.public-listing-material {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Card footer: price + CTA */
+.public-listing-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem 0.9rem;
+  border-top: 1px solid var(--border-color);
+  margin-top: auto;
+}
+
+.public-listing-price {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.public-listing-price-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--text-tertiary, #9ca3af);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.mp-price {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.cta-hint {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-primary, var(--accent-color));
+  padding: 0.35rem 0.7rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-primary, var(--accent-color)) 10%, transparent);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.mp-listing-card:hover .cta-hint {
+  background: var(--color-primary, var(--accent-color));
+  color: #fff;
+}
+
+/* Dark-mode adjustments */
+.dark-mode .public-listing-thumb {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+}
+.dark-mode .public-listing-badge {
+  background: rgba(255, 255, 255, 0.14);
+  color: #f1f5f9;
+}
+
+.mp-buy-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.6rem;
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.mp-buy-btn:hover {
+  opacity: 0.9;
+}
+
+/* CTA */
+.mp-cta {
+  text-align: center;
+  padding: 2.25rem 1.5rem;
+  margin: 1.5rem 1.5rem;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(37, 99, 235, 0.12));
+  border: 1px solid rgba(14, 165, 233, 0.25);
+  border-radius: 12px;
+  max-width: 1100px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.mp-cta h2 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin-bottom: 0.35rem;
+}
+
+.mp-cta p {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+
+.mp-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1.5rem;
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.mp-cta-btn:hover {
+  opacity: 0.9;
+}
+
+/* Vendor Comparison */
+.comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.comparison-table th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.comparison-table td {
+  padding: 0.6rem 0.75rem;
+  font-size: 0.8rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.comparison-table tr:hover {
+  background: rgba(14, 165, 233, 0.03);
+}
+

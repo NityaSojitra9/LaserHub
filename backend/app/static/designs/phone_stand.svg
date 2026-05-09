@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160" width="200mm" height="160mm">
+  <!-- Main stand body (front panel) -->
+  <path d="M20,10 L180,10 L180,120 L140,120 L140,140 L60,140 L60,120 L20,120 Z" fill="none" stroke="#000" stroke-width="2"/>
+  <!-- Phone rest slot (top) -->
+  <rect x="40" y="10" width="120" height="15" rx="3" fill="none" stroke="#000" stroke-width="1.5"/>
+  <!-- Phone cradle slot (angled) -->
+  <path d="M60,50 L140,50 L140,80 L60,80 Z" fill="none" stroke="#000" stroke-width="1.5"/>
+  <!-- Cable management slot -->
+  <rect x="90" y="100" width="20" height="35" rx="3" fill="none" stroke="#000" stroke-width="1.5"/>
+  <!-- Decorative geometric cutouts -->
+  <polygon points="45,90 55,75 65,90" fill="none" stroke="#000" stroke-width="1"/>
+  <polygon points="135,90 145,75 155,90" fill="none" stroke="#000" stroke-width="1"/>
+  <!-- Left support strut -->
+  <rect x="20" y="120" width="40" height="15" rx="2" fill="none" stroke="#000" stroke-width="1.5"/>
+  <!-- Right support strut -->
+  <rect x="140" y="120" width="40" height="15" rx="2" fill="none" stroke="#000" stroke-width="1.5"/>
+  <!-- Decorative logo area circle -->
+  <circle cx="100" cy="90" r="8" fill="none" stroke="#000" stroke-width="1"/>
+  <!-- Finger grip notch bottom -->
+  <path d="M85,140 Q100,150 115,140" fill="none" stroke="#000" stroke-width="1.5"/>
+  <!-- Material info text guide line -->
+  <line x1="25" y1="55" x2="55" y2="55" stroke="#000" stroke-width="0.5" stroke-dasharray="2,2"/>
+</svg>

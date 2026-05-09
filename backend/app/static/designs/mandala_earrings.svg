@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 50" width="120mm" height="50mm">
+  <!-- Left earring -->
+  <g transform="translate(30,25)">
+    <circle cx="0" cy="0" r="20" fill="none" stroke="#000" stroke-width="1"/>
+    <circle cx="0" cy="0" r="14" fill="none" stroke="#000" stroke-width="0.8"/>
+    <circle cx="0" cy="0" r="8" fill="none" stroke="#000" stroke-width="0.8"/>
+    <circle cx="0" cy="0" r="3" fill="none" stroke="#000" stroke-width="0.8"/>
+    <!-- Spokes -->
+    <line x1="0" y1="-20" x2="0" y2="-14" stroke="#000" stroke-width="0.8"/>
+    <line x1="0" y1="14" x2="0" y2="20" stroke="#000" stroke-width="0.8"/>
+    <line x1="-20" y1="0" x2="-14" y2="0" stroke="#000" stroke-width="0.8"/>
+    <line x1="14" y1="0" x2="20" y2="0" stroke="#000" stroke-width="0.8"/>
+    <line x1="9.9" y1="-9.9" x2="14.1" y2="-14.1" stroke="#000" stroke-width="0.8"/>
+    <line x1="-9.9" y1="-9.9" x2="-14.1" y2="-14.1" stroke="#000" stroke-width="0.8"/>
+    <line x1="9.9" y1="9.9" x2="14.1" y2="14.1" stroke="#000" stroke-width="0.8"/>
+    <line x1="-9.9" y1="9.9" x2="-14.1" y2="14.1" stroke="#000" stroke-width="0.8"/>
+    <!-- Hook hole -->
+    <circle cx="0" cy="-22" r="1.5" fill="none" stroke="#000" stroke-width="0.8"/>
+  </g>
+  <!-- Right earring -->
+  <g transform="translate(90,25)">
+    <circle cx="0" cy="0" r="20" fill="none" stroke="#000" stroke-width="1"/>
+    <circle cx="0" cy="0" r="14" fill="none" stroke="#000" stroke-width="0.8"/>
+    <circle cx="0" cy="0" r="8" fill="none" stroke="#000" stroke-width="0.8"/>
+    <circle cx="0" cy="0" r="3" fill="none" stroke="#000" stroke-width="0.8"/>
+    <line x1="0" y1="-20" x2="0" y2="-14" stroke="#000" stroke-width="0.8"/>
+    <line x1="0" y1="14" x2="0" y2="20" stroke="#000" stroke-width="0.8"/>
+    <line x1="-20" y1="0" x2="-14" y2="0" stroke="#000" stroke-width="0.8"/>
+    <line x1="14" y1="0" x2="20" y2="0" stroke="#000" stroke-width="0.8"/>
+    <line x1="9.9" y1="-9.9" x2="14.1" y2="-14.1" stroke="#000" stroke-width="0.8"/>
+    <line x1="-9.9" y1="-9.9" x2="-14.1" y2="-14.1" stroke="#000" stroke-width="0.8"/>
+    <line x1="9.9" y1="9.9" x2="14.1" y2="14.1" stroke="#000" stroke-width="0.8"/>
+    <line x1="-9.9" y1="9.9" x2="-14.1" y2="14.1" stroke="#000" stroke-width="0.8"/>
+    <circle cx="0" cy="-22" r="1.5" fill="none" stroke="#000" stroke-width="0.8"/>
+  </g>
+</svg>

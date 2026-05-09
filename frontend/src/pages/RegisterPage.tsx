@@ -1,11 +1,46 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { Mail, Lock, User, UserPlus, Loader2 } from 'lucide-react';
+import {
+  Mail,
+  Lock,
+  User,
+  UserPlus,
+  Loader2,
+  Search,
+  Upload,
+  BookOpen,
+  ShieldCheck,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { GoogleLogin } from '../components/GoogleLogin';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
+
+const BENEFITS = [
+  {
+    icon: <Search size={18} />,
+    title: 'Compare prices from multiple vendors',
+    desc: 'One upload, side-by-side quotes from verified laser cutting shops.',
+  },
+  {
+    icon: <Upload size={18} />,
+    title: 'Upload your design, get instant quotes',
+    desc: 'DXF, SVG, AI, PDF, EPS — priced per cm of cut length in seconds.',
+  },
+  {
+    icon: <BookOpen size={18} />,
+    title: 'Free design library',
+    desc: 'Browse and remix thousands of open designs for laser cutting.',
+  },
+  {
+    icon: <ShieldCheck size={18} />,
+    title: 'Secure payments',
+    desc: 'Stripe-backed checkout with full refund protection.',
+  },
+];
 
 export const RegisterPage: React.FC = () => {
+  useDocumentTitle('Create Account — LaserHub');
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
@@ -24,72 +59,99 @@ export const RegisterPage: React.FC = () => {
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-card">
-        <h1>Create Account</h1>
-        <p>Join LaserHub for order history and faster checkout</p>
-        
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label htmlFor="name">Full Name</label>
-            <div className="input-with-icon">
-              <User size={18} />
-              <input
-                id="name"
-                type="text"
-                placeholder="John Doe"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-            </div>
-          </div>
+    <div className="auth-page auth-split">
+      <div className="auth-split-inner">
+        <div className="auth-card auth-form-col">
+          <h1>Create account</h1>
+          <p>Join LaserHub for order history and faster checkout</p>
 
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <div className="input-with-icon">
-              <Mail size={18} />
-              <input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
+          <form onSubmit={handleSubmit} className="auth-form">
+            <div className="form-group">
+              <label htmlFor="name">Full Name</label>
+              <div className="input-with-icon">
+                <User size={18} />
+                <input
+                  id="name"
+                  type="text"
+                  placeholder="John Doe"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
+              </div>
             </div>
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <div className="input-with-icon">
-              <Lock size={18} />
-              <input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+
+            <div className="form-group">
+              <label htmlFor="email">Email</label>
+              <div className="input-with-icon">
+                <Mail size={18} />
+                <input
+                  id="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
             </div>
+
+            <div className="form-group">
+              <label htmlFor="password">Password</label>
+              <div className="input-with-icon">
+                <Lock size={18} />
+                <input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <button type="submit" className="auth-submit" disabled={isLoading}>
+              {isLoading ? <Loader2 size={18} className="animate-spin" /> : <UserPlus size={18} />}
+              Create Account
+            </button>
+          </form>
+
+          <GoogleLogin
+            onSuccess={(data) => {
+              localStorage.setItem('user_token', data.access_token);
+              setUser(data.user);
+              navigate('/dashboard');
+            }}
+          />
+
+          <p className="auth-footer">
+            Already have an account? <Link to="/login">Login</Link>
+          </p>
+        </div>
+
+        <aside className="auth-benefits-col" aria-label="Why LaserHub">
+          <div className="auth-benefits-graphic" aria-hidden="true">
+            <div className="auth-benefits-graphic-blob" />
+            <div className="auth-benefits-graphic-grid" />
           </div>
-          
-          <button type="submit" className="auth-submit" disabled={isLoading}>
-            {isLoading ? <Loader2 size={18} className="animate-spin" /> : <UserPlus size={18} />}
-            Create Account
-          </button>
-        </form>
-
-        <GoogleLogin onSuccess={(data) => {
-          localStorage.setItem('user_token', data.access_token);
-          setUser(data.user);
-          navigate('/dashboard');
-        }} />
-
-        <p className="auth-footer">
-          Already have an account? <Link to="/login">Login</Link>
-        </p>
+          <h2>Why LaserHub?</h2>
+          <p className="auth-benefits-sub">
+            The open marketplace for laser cutting — instant quotes, fair prices,
+            built by makers for makers.
+          </p>
+          <ul className="auth-benefits-list">
+            {BENEFITS.map((b) => (
+              <li key={b.title}>
+                <span className="auth-benefits-icon">{b.icon}</span>
+                <div>
+                  <strong>{b.title}</strong>
+                  <p>{b.desc}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </aside>
       </div>
     </div>
   );

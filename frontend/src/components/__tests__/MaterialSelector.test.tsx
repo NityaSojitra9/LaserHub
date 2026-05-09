@@ -150,7 +150,7 @@ describe('MaterialSelector Component', () => {
       expect(screen.queryByTestId('skeleton')).not.toBeInTheDocument();
     });
 
-    const thickness5Btn = screen.getByText('5mm');
+    const thickness5Btn = screen.getByText('5 mm');
     await act(async () => {
       fireEvent.click(thickness5Btn);
     });

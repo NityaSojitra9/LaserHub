@@ -7,10 +7,12 @@ from slowapi.util import get_remote_address
 
 from app.core.config import settings
 
+storage_uri = settings.REDIS_URL if settings.REDIS_URL else "memory://"
+
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=[f"{settings.RATE_LIMIT_PER_MINUTE} per minute"],
-    storage_uri="memory://",
+    storage_uri=storage_uri,
 )
 
 # Rate limit decorators

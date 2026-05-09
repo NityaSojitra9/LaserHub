@@ -117,6 +117,62 @@ async def require_authentication(
     return await get_current_user(credentials)
 
 
+def require_role(*allowed_roles: str):
+    """Create a dependency that enforces the caller's TeamMember role is in allowed_roles.
+
+    Usage:
+        @router.get(..., dependencies=[Depends(require_role("owner", "operator"))])
+
+    The check runs against the caller's TeamMember record within their vendor.
+    A user without a vendor context (e.g. pure customer) is rejected.
+    Owners pass all role checks implicitly.
+    """
+    async def _checker(
+        credentials: Optional[HTTPAuthorizationCredentials] = Security(security),
+    ) -> dict:
+        user = await get_current_user(credentials)
+        # Lazy import to avoid circular deps
+        from sqlalchemy import select
+        from app.core.database import async_session_maker
+        from app.models import User as UserModel, Vendor, TeamMember
+
+        async with async_session_maker() as db:
+            u_res = await db.execute(select(UserModel).where(UserModel.email == user["email"]))
+            db_user = u_res.scalar_one_or_none()
+            if not db_user:
+                raise HTTPException(status_code=401, detail="User not found")
+
+            # Vendor owner?
+            v_res = await db.execute(select(Vendor).where(Vendor.user_id == db_user.id))
+            vendor = v_res.scalar_one_or_none()
+            if vendor:
+                user["vendor_id"] = vendor.id
+                user["team_role"] = "owner"
+                return user
+
+            # Team member?
+            tm_res = await db.execute(
+                select(TeamMember).where(
+                    TeamMember.user_id == db_user.id,
+                    TeamMember.accepted == True,  # noqa: E712
+                )
+            )
+            tm = tm_res.scalar_one_or_none()
+            if not tm:
+                raise HTTPException(status_code=403, detail="No team access")
+
+            if tm.role not in allowed_roles and "owner" not in allowed_roles:
+                # owners always implicitly allowed by presence of role in allowed list
+                if tm.role != "owner":
+                    raise HTTPException(status_code=403, detail=f"Role '{tm.role}' not permitted")
+
+            user["vendor_id"] = tm.vendor_id
+            user["team_role"] = tm.role
+            return user
+
+    return _checker
+
+
 async def require_verified_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Security(security)
 ) -> dict:

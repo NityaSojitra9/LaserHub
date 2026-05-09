@@ -1,0 +1,737 @@
+/* ============================================
+   Vendor Pages - Shared Utilities
+   ============================================ */
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color 0.15s;
+  margin-bottom: 1rem;
+}
+
+.back-link:hover {
+  color: var(--accent-color);
+}
+
+.browse-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.85rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  flex: 1;
+  max-width: 420px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.browse-search:focus-within {
+  border-color: var(--accent-color);
+  background: var(--bg-primary);
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.08);
+}
+
+.browse-search svg {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.browse-search input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.browse-search input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.browse-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.browse-empty {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  color: var(--text-secondary);
+}
+
+.browse-empty h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.browse-empty p {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+  margin-bottom: 1rem;
+}
+
+/* ============================================
+   Vendors Page (/vendors)
+   ============================================ */
+
+.vendors-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.vendors-page .browse-header {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.vendors-page .browse-header h1 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0.25rem 0 0.75rem;
+}
+
+.vendors-page .browse-search {
+
+/* Enhanced vendors search bar */
+.vendors-search {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--border-color);
+  padding: 0.6rem 1rem;
+}
+
+.vendors-search:focus-within {
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1), 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+  max-width: 100%;
+
+/* Enhanced vendors search bar */
+.vendors-search {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--border-color);
+  padding: 0.6rem 1rem;
+}
+
+.vendors-search:focus-within {
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1), 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+  width: 100%;
+
+/* Enhanced vendors search bar */
+.vendors-search {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--border-color);
+  padding: 0.6rem 1rem;
+}
+
+.vendors-search:focus-within {
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1), 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+}
+
+/* Enhanced vendors search bar */
+.vendors-search {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--border-color);
+  padding: 0.6rem 1rem;
+}
+
+.vendors-search:focus-within {
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1), 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.vendors-page .mp-vendor-grid {
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.vendors-page .mp-vendor-card {
+  padding: 1.15rem;
+  gap: 0;
+  box-shadow: var(--card-shadow);
+  transition: all 0.2s ease;
+  flex-wrap: wrap;
+  flex-direction: row;
+  align-items: flex-start;
+}
+
+.vendors-page .mp-vendor-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+  border-color: var(--accent-color);
+}
+
+.vendors-page .mp-vendor-card:hover .vendor-view-profile {
+  opacity: 1;
+}
+
+.vendors-page .mp-vendor-avatar {
+  width: 48px;
+  height: 48px;
+  font-size: 1.15rem;
+  border-radius: 10px;
+  margin-right: 0.85rem;
+  flex-shrink: 0;
+}
+
+.vendors-page .mp-vendor-info {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.vendors-page .mp-vendor-info h4 {
+  font-size: 0.95rem;
+  margin-bottom: 0.25rem;
+}
+
+.vendor-desc {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin: 0.15rem 0 0.4rem;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Vendor name row with verified badge */
+.vendor-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.vendor-name-row h4,
+.vendor-name-row h1 {
+  margin: 0;
+}
+
+.vendor-verified-badge {
+  color: #0ea5e9;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.vendor-verified-badge.large svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Rating stars */
+.vendor-rating-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.vendor-rating-stars .star-filled {
+  color: #f59e0b;
+}
+
+.vendor-rating-stars .star-empty {
+  color: var(--text-tertiary);
+  opacity: 0.5;
+}
+
+.vendor-rating-value {
+  margin-left: 0.3rem;
+  font-weight: 600;
+  font-size: inherit;
+  color: var(--text-primary);
+}
+
+/* View Profile link on vendor card */
+.vendor-view-profile {
+  display: block;
+  flex-basis: 100%;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent-color);
+  padding-top: 0.65rem;
+  margin-top: 0.65rem;
+  border-top: 1px solid var(--border-color);
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+
+/* Vendors empty state */
+.vendors-empty {
+  padding: 4rem 1.5rem;
+}
+
+.vendors-empty svg {
+  color: var(--text-tertiary);
+  margin-bottom: 0.75rem;
+  opacity: 0.6;
+}
+
+.vendors-clear-search {
+  display: inline-block;
+  margin-top: 0.25rem;
+  padding: 0.4rem 1rem;
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.vendors-clear-search:hover {
+  background: var(--accent-hover);
+}
+
+
+.vendors-page .mp-vendor-meta {
+  font-size: 0.72rem;
+  gap: 0.5rem 0.85rem;
+  flex-wrap: wrap;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .vendors-page .mp-vendor-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================
+   Vendor Profile Page (/vendor/:slug)
+   ============================================ */
+
+.vendor-profile-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.vendor-profile-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+  margin-bottom: 1.5rem;
+}
+
+.vendor-profile-header .mp-vendor-avatar.large {
+  width: 72px;
+  height: 72px;
+  border-radius: 14px;
+  font-size: 1.75rem;
+  flex-shrink: 0;
+}
+
+.vendor-profile-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.vendor-profile-info h1 {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 0.35rem;
+  line-height: 1.2;
+}
+
+.vendor-profile-info > p {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.65rem;
+  line-height: 1.5;
+}
+
+.vendor-profile-info .mp-vendor-meta {
+  font-size: 0.78rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.vendor-section {
+  margin-bottom: 1.5rem;
+}
+
+.vendor-section h2 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.vendor-materials-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.vendor-material-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.vendor-material-item .material-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+}
+
+.vendor-material-item .material-thickness {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.vendor-material-item .mp-price {
+  font-weight: 700;
+  color: var(--accent-color);
+  white-space: nowrap;
+}
+
+.vendor-reviews-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.vendor-review-item {
+  padding: 1rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.review-header strong {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+
+.review-stars {
+  display: flex;
+  gap: 0.15rem;
+  color: #f59e0b;
+}
+
+.vendor-review-item p {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 0.4rem;
+}
+
+.vendor-review-item small {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+}
+
+@media (max-width: 640px) {
+  .vendor-profile-header {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .vendor-profile-info .mp-vendor-meta {
+    justify-content: center;
+  }
+
+  .vendor-material-item {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+}
+
+/* ============================================
+   Vendor Register Page (/vendor/register)
+   ============================================ */
+
+.vendor-register-page {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.vendor-register-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+}
+
+.vendor-register-header {
+  text-align: center;
+  padding: 2rem 2rem 0.5rem;
+}
+
+.vendor-register-header svg {
+  color: var(--accent-color);
+  margin-bottom: 0.75rem;
+}
+
+.vendor-register-header h1 {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 0.35rem;
+}
+
+.vendor-register-header p {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.vendor-register-form {
+  padding: 1.5rem 2rem 2rem;
+}
+
+.vendor-register-btn {
+  width: 100%;
+  padding: 0.65rem 1.25rem;
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+  margin-top: 0.5rem;
+}
+
+.vendor-register-btn:hover {
+  background: var(--accent-hover);
+}
+
+.vendor-register-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .vendor-register-page {
+    padding: 1rem;
+  }
+
+  .vendor-register-header {
+    padding: 1.5rem 1.25rem 0.5rem;
+  }
+
+  .vendor-register-form {
+    padding: 1.25rem;
+  }
+}
+
+/* ============================================
+   Vendor Dashboard - Enhancements
+   ============================================ */
+
+.vd-tabs {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.vd-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.vd-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+/* Vendor Dashboard - Colored stat icons */
+.vd-stat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.vd-stat-orders .vd-stat-icon {
+  background: rgba(14, 165, 233, 0.1);
+  color: #0ea5e9;
+}
+
+.vd-stat-revenue .vd-stat-icon {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+}
+
+.vd-stat-rating .vd-stat-icon {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.vd-stat-materials .vd-stat-icon {
+  background: rgba(139, 92, 246, 0.1);
+  color: #8b5cf6;
+}
+
+/* Vendor Dashboard - Overview empty state */
+.vd-overview-empty {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.vd-overview-empty svg {
+  color: var(--text-tertiary);
+  margin-bottom: 0.75rem;
+  opacity: 0.5;
+}
+
+/* Vendor Dashboard - Table enhancements */
+.vd-table {
+  min-width: 580px;
+}
+
+.vd-table thead {
+  background: var(--bg-secondary);
+}
+
+.vd-table tbody tr:nth-child(even) {
+  background-color: var(--bg-secondary);
+}
+
+.vd-table tbody tr:nth-child(even):hover {
+  background-color: rgba(14, 165, 233, 0.04);
+}
+
+.vd-table tbody tr:nth-child(odd):hover {
+  background-color: rgba(14, 165, 233, 0.04);
+}
+
+.vd-table th {
+  text-align: left;
+  white-space: nowrap;
+}
+
+.vd-table td {
+  white-space: nowrap;
+}
+
+/* Vendor Dashboard - Section header */
+.vd-section-header h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+/* Vendor Dashboard - Empty state with icon */
+.vd-empty svg {
+  color: var(--text-tertiary);
+  margin-bottom: 0.5rem;
+  opacity: 0.4;
+}
+
+.vd-empty p + p {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  margin-top: 0.25rem;
+}
+
+
+.vd-table-wrap .orders-table {
+  min-width: 580px;
+  border: none;
+  margin: 0;
+}
+
+.vd-overview-empty {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.vd-overview-empty p {
+  margin-bottom: 0.5rem;
+}
+
+.vd-materials h2,
+.vd-orders h2,
+.vd-listings h2 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .vendor-dashboard {
+    padding: 1rem;
+  }
+
+  .vd-header h1 {
+    font-size: 1.05rem;
+  }
+
+  .vd-stat-card {
+    padding: 0.75rem;
+    gap: 0.5rem;
+  }
+
+  .vd-stat-value {
+    font-size: 1rem;
+  }
+
+  .vd-tab {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .vd-stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

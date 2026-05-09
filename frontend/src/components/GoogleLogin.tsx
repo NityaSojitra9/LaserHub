@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useRef } from 'react';
 import { authApi } from '../services';
 import { toast } from 'sonner';
 
@@ -20,8 +20,36 @@ declare global {
   }
 }
 
+// Track script loading globally to avoid duplicates
+let gsiScriptLoaded = false;
+let gsiScriptPromise: Promise<void> | null = null;
+
+function loadGsiScript(): Promise<void> {
+  if (gsiScriptPromise) return gsiScriptPromise;
+  if (window.google?.accounts?.id) {
+    gsiScriptLoaded = true;
+    return Promise.resolve();
+  }
+  gsiScriptPromise = new Promise((resolve) => {
+    const existing = document.querySelector('script[src*="accounts.google.com/gsi/client"]');
+    if (existing) {
+      existing.addEventListener('load', () => { gsiScriptLoaded = true; resolve(); });
+      if (gsiScriptLoaded) resolve();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => { gsiScriptLoaded = true; resolve(); };
+    document.head.appendChild(script);
+  });
+  return gsiScriptPromise;
+}
+
 export const GoogleLogin: React.FC<GoogleLoginProps> = ({ onSuccess }) => {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const buttonRef = useRef<HTMLDivElement>(null);
 
   const handleCredentialResponse = useCallback(async (response: any) => {
     try {
@@ -38,54 +66,48 @@ export const GoogleLogin: React.FC<GoogleLoginProps> = ({ onSuccess }) => {
   useEffect(() => {
     if (!clientId) return;
 
-    // Load Google Identity Services script
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      if (window.google) {
-        window.google.accounts.id.initialize({
-          client_id: clientId,
-          callback: handleCredentialResponse,
-          auto_select: true,  // Auto-select if only one account
-        });
+    loadGsiScript().then(() => {
+      if (!window.google || !buttonRef.current) return;
 
-        // Show One Tap prompt
-        window.google.accounts.id.prompt((notification: any) => {
-          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-            // One Tap not shown, button will be the fallback
-          }
-        });
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: handleCredentialResponse,
+        auto_select: false,
+      });
 
-        // Render button as fallback
-        const buttonDiv = document.getElementById('google-signin-button');
-        if (buttonDiv) {
-          window.google.accounts.id.renderButton(buttonDiv, {
-            theme: 'outline',
-            size: 'large',
-            width: '100%',
-            text: 'signin_with',
-            shape: 'rectangular',
-          });
-        }
-      }
-    };
-    document.head.appendChild(script);
+      // Clear previous render
+      buttonRef.current.innerHTML = '';
 
-    return () => {
-      document.head.removeChild(script);
-    };
+      const width = Math.min(
+        400,
+        Math.max(240, buttonRef.current.offsetWidth || 360)
+      );
+      window.google.accounts.id.renderButton(buttonRef.current, {
+        theme: 'outline',
+        size: 'large',
+        text: 'signin_with',
+        shape: 'rectangular',
+        logo_alignment: 'center',
+        width,
+      });
+    });
   }, [clientId, handleCredentialResponse]);
 
-  if (!clientId) return null;
+  if (!clientId) return (
+    <div className="google-login">
+      <div className="divider"><span>or</span></div>
+      <div className="google-btn-placeholder">
+        <span>Google Sign-In not configured — add <code>VITE_GOOGLE_CLIENT_ID</code> to frontend/.env</span>
+      </div>
+    </div>
+  );
 
   return (
     <div className="google-login">
       <div className="divider">
         <span>or</span>
       </div>
-      <div id="google-signin-button" className="google-btn-container"></div>
+      <div ref={buttonRef} className="google-btn-container"></div>
     </div>
   );
 };

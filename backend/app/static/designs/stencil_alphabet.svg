@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 120" width="300mm" height="120mm">
+  <!-- Outer border -->
+  <rect x="2" y="2" width="296" height="116" fill="none" stroke="#000" stroke-width="1.5"/>
+  <!-- Letter A with stencil bridges -->
+  <path d="M20,100 L35,20 L50,100" fill="none" stroke="#000" stroke-width="2.5"/>
+  <line x1="25" y1="70" x2="45" y2="70" stroke="#000" stroke-width="2.5"/>
+  <!-- Letter B -->
+  <path d="M60,20 L60,100 M60,20 Q85,20 85,40 Q85,60 60,60 M60,60 Q90,60 90,80 Q90,100 60,100" fill="none" stroke="#000" stroke-width="2.5"/>
+  <!-- Stencil bridges for B -->
+  <line x1="72" y1="30" x2="72" y2="50" stroke="#fff" stroke-width="3"/>
+  <line x1="75" y1="70" x2="75" y2="90" stroke="#fff" stroke-width="3"/>
+  <!-- Letter C -->
+  <path d="M120,35 Q120,20 100,20 Q80,20 80,60 Q80,100 100,100 Q120,100 120,85" fill="none" stroke="#000" stroke-width="2.5"/>
+  <!-- Letter E -->
+  <path d="M130,20 L130,100 M130,20 L160,20 M130,60 L155,60 M130,100 L160,100" fill="none" stroke="#000" stroke-width="2.5"/>
+  <!-- Letter R -->
+  <path d="M175,20 L175,100 M175,20 Q205,20 205,40 Q205,60 175,60 M190,60 L210,100" fill="none" stroke="#000" stroke-width="2.5"/>
+  <line x1="185" y1="30" x2="185" y2="50" stroke="#fff" stroke-width="3"/>
+  <!-- Letter S -->
+  <path d="M240,30 Q240,20 225,20 Q210,20 210,40 Q210,60 230,60 Q250,60 250,80 Q250,100 235,100 Q220,100 220,90" fill="none" stroke="#000" stroke-width="2.5"/>
+  <!-- Registration marks -->
+  <circle cx="15" cy="60" r="4" fill="none" stroke="#000" stroke-width="1"/>
+  <line x1="11" y1="60" x2="7" y2="60" stroke="#000" stroke-width="1"/>
+  <line x1="19" y1="60" x2="23" y2="60" stroke="#000" stroke-width="1"/>
+  <line x1="15" y1="56" x2="15" y2="52" stroke="#000" stroke-width="1"/>
+  <line x1="15" y1="64" x2="15" y2="68" stroke="#000" stroke-width="1"/>
+  <circle cx="285" cy="60" r="4" fill="none" stroke="#000" stroke-width="1"/>
+  <line x1="281" y1="60" x2="277" y2="60" stroke="#000" stroke-width="1"/>
+  <line x1="289" y1="60" x2="293" y2="60" stroke="#000" stroke-width="1"/>
+  <line x1="285" y1="56" x2="285" y2="52" stroke="#000" stroke-width="1"/>
+  <line x1="285" y1="64" x2="285" y2="68" stroke="#000" stroke-width="1"/>
+</svg>

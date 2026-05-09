@@ -34,6 +34,14 @@ def _material_to_response(material: Material) -> MaterialResponse:
         except (json.JSONDecodeError, TypeError):
             thicknesses = []
 
+    use_cases: list = []
+    raw_cases = getattr(material, "best_use_cases", None)
+    if raw_cases:
+        try:
+            use_cases = json.loads(raw_cases) if isinstance(raw_cases, str) else list(raw_cases)
+        except (json.JSONDecodeError, TypeError):
+            use_cases = []
+
     return MaterialResponse(
         id=material.id,
         name=material.name,
@@ -42,8 +50,16 @@ def _material_to_response(material: Material) -> MaterialResponse:
         available_thicknesses=thicknesses,
         description=material.description,
         color_hex=material.color_hex or "#0ea5e9",
+        image_url=material.image_url,
         is_active=material.is_active,
         created_at=material.created_at,
+        strength_rating=getattr(material, "strength_rating", None) or 3,
+        outdoor_safe=bool(getattr(material, "outdoor_safe", False)),
+        food_safe=bool(getattr(material, "food_safe", False)),
+        burn_behavior=getattr(material, "burn_behavior", "") or "",
+        finish_options=getattr(material, "finish_options", "") or "",
+        best_use_cases=use_cases,
+        max_thickness_mm=getattr(material, "max_thickness_mm", None),
         configs=[MaterialConfigResponse(
             id=c.id,
             thickness_mm=c.thickness_mm,
@@ -92,7 +108,9 @@ async def create_material(
         type=material_data.type.value,
         rate_per_cm2_mm=material_data.rate_per_cm2_mm,
         available_thicknesses_raw=json.dumps(material_data.available_thicknesses),
-        description=material_data.description
+        description=material_data.description,
+        color_hex=material_data.color_hex,
+        image_url=material_data.image_url,
     )
     db.add(new_material)
     await db.commit()
@@ -145,6 +163,10 @@ async def update_material(
         material.description = material_data.description
     if material_data.is_active is not None:
         material.is_active = material_data.is_active
+    if material_data.color_hex is not None:
+        material.color_hex = material_data.color_hex
+    if material_data.image_url is not None:
+        material.image_url = material_data.image_url
 
     await db.commit()
     

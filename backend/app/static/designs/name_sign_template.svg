@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 80" width="280mm" height="80mm">
+  <!-- Outer decorative frame -->
+  <rect x="2" y="2" width="276" height="76" rx="8" ry="8" fill="none" stroke="#000" stroke-width="2"/>
+  <!-- Inner frame with offset -->
+  <rect x="8" y="8" width="264" height="64" rx="5" ry="5" fill="none" stroke="#000" stroke-width="1"/>
+  <!-- Corner decorative flourishes -->
+  <path d="M15,15 Q20,10 25,15" fill="none" stroke="#000" stroke-width="1.5"/>
+  <path d="M15,65 Q20,70 25,65" fill="none" stroke="#000" stroke-width="1.5"/>
+  <path d="M255,15 Q260,10 265,15" fill="none" stroke="#000" stroke-width="1.5"/>
+  <path d="M255,65 Q260,70 265,65" fill="none" stroke="#000" stroke-width="1.5"/>
+  <!-- Left decorative star -->
+  <polygon points="30,40 33,33 40,30 33,27 30,20 27,27 20,30 27,33" fill="none" stroke="#000" stroke-width="1"/>
+  <!-- Right decorative star -->
+  <polygon points="250,40 253,33 260,30 253,27 250,20 247,27 240,30 247,33" fill="none" stroke="#000" stroke-width="1"/>
+  <!-- Center text area placeholder guides (engraving area) -->
+  <line x1="50" y1="55" x2="230" y2="55" stroke="#000" stroke-width="0.5" stroke-dasharray="3,3"/>
+  <!-- Sample block letters "LASER" for reference sizing -->
+  <!-- L -->
+  <path d="M58,25 L58,50 L72,50" fill="none" stroke="#000" stroke-width="2.5"/>
+  <!-- A -->
+  <path d="M76,50 L85,25 L94,50 M79,40 L91,40" fill="none" stroke="#000" stroke-width="2.5"/>
+  <!-- S -->
+  <path d="M110,25 Q98,25 98,37 Q98,50 110,50 Q122,50 122,62 Q122,75 110,75" fill="none" stroke="#000" stroke-width="2.5"/>
+  <!-- Mounting holes -->
+  <circle cx="20" cy="40" r="3" fill="none" stroke="#000" stroke-width="1"/>
+  <circle cx="260" cy="40" r="3" fill="none" stroke="#000" stroke-width="1"/>
+</svg>

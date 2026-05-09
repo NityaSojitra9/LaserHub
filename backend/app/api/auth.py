@@ -5,18 +5,21 @@ Authentication and User API endpoints
 import uuid
 from typing import List
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import (
     create_access_token,
+    decode_access_token,
     get_password_hash,
     verify_password,
 )
+from app.middleware.rate_limiter import limiter
 from app.models import Material, Order, UploadedFile, User
 from app.schemas import (
     OrderResponse,
@@ -41,7 +44,9 @@ async def send_reset_email(email: str, token: str):
     await EmailService.send_password_reset(email, token)
 
 @router.post("/register", response_model=UserResponse)
+@limiter.limit("5 per minute")
 async def register(
+    request: Request,
     user_data: UserCreate,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db)
@@ -71,13 +76,30 @@ async def register(
     await db.commit()
     await db.refresh(new_user)
 
+    # Auto-link any previously-placed guest orders with this email to the new user
+    try:
+        guest_orders = await db.execute(
+            select(Order).where(
+                Order.customer_email == new_user.email,
+                Order.user_id.is_(None),
+            )
+        )
+        for guest_order in guest_orders.scalars().all():
+            guest_order.user_id = new_user.id
+        await db.commit()
+    except Exception:
+        # Don't block registration if linking fails
+        await db.rollback()
+
     # Send verification email
     background_tasks.add_task(send_verification_email, new_user.email, new_user.name, verification_token)
 
     return new_user
 
 @router.post("/login", response_model=Token)
+@limiter.limit("5 per minute")
 async def login(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db)
 ):
@@ -153,7 +175,9 @@ async def google_login(
             "id": user.id,
             "email": user.email,
             "name": user.name,
+            "is_admin": user.email == settings.ADMIN_EMAIL,
             "is_verified": user.is_verified,
+            "created_at": str(user.created_at) if user.created_at else None,
         }}
 
     except ValueError as e:
@@ -177,7 +201,9 @@ async def verify_email(request: VerificationRequest, db: AsyncSession = Depends(
     return {"message": "Email verified successfully"}
 
 @router.post("/password-reset-request")
+@limiter.limit("3 per minute")
 async def request_password_reset(
+    http_request: Request,
     request: PasswordResetRequest,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db)
@@ -211,7 +237,6 @@ async def confirm_password_reset(request: PasswordResetConfirm, db: AsyncSession
     return {"message": "Password reset successfully"}
 
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from jose import JWTError, jwt
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
@@ -219,24 +244,35 @@ async def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db)
 ) -> User:
-    """Get current authenticated user"""
+    """Get current authenticated user.
+
+    Uses decode_access_token which validates exp, iat, and iss claims.
+    """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        # decode_access_token validates exp, iat, and iss="laserhub-api"
+        payload = decode_access_token(token)
         email: str = payload.get("sub")
+        user_id = payload.get("id")
         if email is None:
             raise credentials_exception
-    except JWTError:
+    except HTTPException:
         raise credentials_exception
 
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
     if user is None:
         raise credentials_exception
+
+    # Extra check: token user_id must match DB record (prevents stale tokens
+    # from working after account deletion / id reassignment)
+    if user_id is not None and user.id != user_id:
+        raise credentials_exception
+
     return user
 
 @router.get("/me", response_model=UserResponse)
@@ -250,8 +286,13 @@ async def get_user_orders(
     db: AsyncSession = Depends(get_db)
 ):
     """Get orders for current user"""
+    # PERF-DB-01: eager-load material + uploaded_file to avoid N+1 per-row queries
     result = await db.execute(
         select(Order)
+        .options(
+            selectinload(Order.material),
+            selectinload(Order.uploaded_file),
+        )
         .where(Order.user_id == current_user.id)
         .order_by(Order.created_at.desc())
     )
@@ -259,16 +300,8 @@ async def get_user_orders(
 
     order_responses = []
     for order in orders:
-        material_result = await db.execute(
-            select(Material).where(Material.id == order.material_id)
-        )
-        material = material_result.scalar_one_or_none()
-
-        # Get actual file UUID instead of the internal DB row ID
-        file_result = await db.execute(
-            select(UploadedFile).where(UploadedFile.id == order.file_id)
-        )
-        uploaded_file = file_result.scalar_one_or_none()
+        material = order.material
+        uploaded_file = order.uploaded_file
 
         order_responses.append(OrderResponse(
             id=order.id,
