@@ -183,7 +183,13 @@ async def google_login(
     except ValueError as e:
         raise HTTPException(status_code=401, detail=f"Invalid Google token: {str(e)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Google auth error: {str(e)}")
+        import logging
+        logging.getLogger(__name__).exception("auth.google_login_failed")
+        raise HTTPException(
+            status_code=502,
+            detail="Authentication provider error. Please try again.",
+            headers={"X-Error-Code": "AUTH_PROVIDER_UNAVAILABLE"}
+        )
 
 @router.post("/verify", status_code=status.HTTP_200_OK)
 async def verify_email(request: VerificationRequest, db: AsyncSession = Depends(get_db)):

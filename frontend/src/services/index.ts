@@ -59,6 +59,7 @@ export interface FileAnalysis {
   cut_length_mm: number;
   estimated_cut_time_minutes: number;
   complexity_score: number;
+  validation_issues?: ValidationIssue[];
 }
 
 export interface CostBreakdown {

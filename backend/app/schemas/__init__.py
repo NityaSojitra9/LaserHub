@@ -139,6 +139,7 @@ class FileAnalysis(BaseModel):
     cut_length_mm: float
     estimated_cut_time_minutes: float
     complexity_score: float
+    validation_issues: List[dict] = []
 
 
 # Cost Calculation Schemas

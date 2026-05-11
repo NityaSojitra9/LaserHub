@@ -12,6 +12,7 @@ import { TagInput } from '../components/TagInput';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { vendorApi } from '../services';
 import type { Material, Order, VendorMaterialItem, VendorProfile, VendorAssetType } from '../services';
+import { formatPrice } from '../utils/formatPrice';
 
 interface VendorStats {
   total_orders?: number;
@@ -248,7 +249,7 @@ export const VendorDashboardPage: React.FC = () => {
               <div className="vd-stat-card vd-stat-revenue">
                 <div className="vd-stat-icon"><DollarSign size={20} /></div>
                 <div>
-                  <p className="vd-stat-value">${(stats.total_revenue || 0).toFixed(2)}</p>
+                  <p className="vd-stat-value">{formatPrice((stats.total_revenue || 0))}</p>
                   <p className="vd-stat-label">Revenue</p>
                 </div>
               </div>
@@ -307,7 +308,7 @@ export const VendorDashboardPage: React.FC = () => {
                     <tr key={m.id}>
                       <td className="cell-bold">{m.material_name}</td>
                       <td>{m.thickness_mm}mm</td>
-                      <td className="cell-accent">${(m.custom_price_per_cm2_mm || 0).toFixed(3)}</td>
+                      <td className="cell-accent">{formatPrice((m.custom_price_per_cm2_mm || 0))}</td>
                       <td>{m.cut_speed_mm_min} mm/min</td>
                       <td>{m.lead_time_days}d</td>
                       <td>
@@ -353,7 +354,7 @@ export const VendorDashboardPage: React.FC = () => {
                     <tr key={o.id}>
                       <td className="cell-accent">{o.order_number}</td>
                       <td>{o.customer_name}</td>
-                      <td className="cell-bold">${(o.total_amount || 0).toFixed(2)}</td>
+                      <td className="cell-bold">{formatPrice((o.total_amount || 0))}</td>
                       <td>
                         <span className={`status-badge ${getStatusClass(o.status)}`}>
                           {o.status}

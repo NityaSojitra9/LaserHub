@@ -276,7 +276,7 @@ export const DesignPreview3D: React.FC<DesignPreview3DProps> = ({
   thicknessMm: thicknessProp,
   colorHex: colorProp,
 }) => {
-  const { uploadedFile, selectedMaterial, selectedThickness } = useAppStore();
+  const { uploadedFile, fileAnalysis, selectedMaterial, selectedThickness } = useAppStore();
   const [use3D, setUse3D] = useState(true);
   const [error, setError] = useState(false);
 
@@ -359,6 +359,17 @@ export const DesignPreview3D: React.FC<DesignPreview3DProps> = ({
         </CanvasErrorBoundary>
       </div>
       <p className="preview-hint">Drag to rotate · Scroll to zoom · Right-click to pan</p>
+      
+      {fileAnalysis?.validation_issues && fileAnalysis.validation_issues.length > 0 && (
+        <div className="preview-validation">
+          {fileAnalysis.validation_issues.map((issue, idx) => (
+            <div key={idx} className={`validation-item validation-${issue.severity}`}>
+              <span className="validation-msg">{issue.message}</span>
+              {issue.count > 1 && <span className="validation-count">×{issue.count}</span>}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

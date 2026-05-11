@@ -183,13 +183,35 @@ async def get_dashboard(
 
     # Recent orders
     recent_orders_result = await db.execute(
-        select(Order).order_by(desc(Order.created_at)).limit(10)
+        select(Order)
+        .options(
+            selectinload(Order.material),
+            selectinload(Order.uploaded_file),
+        )
+        .order_by(desc(Order.created_at))
+        .limit(10)
     )
     recent_orders = recent_orders_result.scalars().all()
 
     recent_order_responses = []
     for order in recent_orders:
-        recent_order_responses.append(await _build_order_response(order, db))
+        material = order.material
+        uploaded_file = order.uploaded_file
+        recent_order_responses.append(OrderResponse(
+            id=order.id,
+            order_number=order.order_number,
+            file_id=uploaded_file.file_id if uploaded_file else str(order.file_id),
+            material_name=material.name if material else "Unknown",
+            thickness_mm=order.thickness_mm,
+            quantity=order.quantity,
+            total_amount=order.total_amount,
+            status=order.status,
+            customer_email=order.customer_email,
+            customer_name=order.customer_name,
+            shipping_address=order.shipping_address,
+            created_at=order.created_at,
+            updated_at=order.updated_at,
+        ))
 
     return DashboardStats(
         total_orders=total_orders,
