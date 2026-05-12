@@ -253,6 +253,24 @@ h4 { font-weight: 600; line-height: 1.4; }
   animation: animate-in 0.2s ease-out forwards;
 }
 
+/* Skeleton Loading State */
+.skeleton {
+  background: var(--bg-tertiary);
+  background: linear-gradient(
+    90deg,
+    var(--bg-tertiary) 25%,
+    var(--bg-secondary) 50%,
+    var(--bg-tertiary) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 /* Steps Indicator */
 .steps-indicator {
   display: flex;

@@ -47,7 +47,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             {cancelText}
           </Button>
           <Button 
-            variant={variant === 'danger' ? 'danger' : variant === 'warning' ? 'warning' : 'primary'}
+            variant={variant === 'danger' ? 'danger' : 'primary'}
             onClick={onConfirm}
             loading={isLoading}
           >

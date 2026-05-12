@@ -434,6 +434,14 @@ async def get_file_analysis(
         except Exception:
             issues = []
 
+    validation_data = validate_laser_cuttable(str(file_record.file_path))
+    health_score = validation_data.get("health_score", 100.0)
+    health_status = "optimal"
+    if health_score < 50:
+        health_status = "critical"
+    elif health_score < 90:
+        health_status = "warning"
+
     return FileAnalysis(
         file_id=file_record.file_id,
         width_mm=file_record.width_mm or 0,
@@ -443,6 +451,8 @@ async def get_file_analysis(
         estimated_cut_time_minutes=file_record.estimated_cut_time_minutes or 0,
         complexity_score=cut_length / area if area > 0 else 0,
         validation_issues=issues,
+        health_score=health_score,
+        health_status=health_status,
     )
 
 

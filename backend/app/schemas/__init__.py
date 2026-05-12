@@ -140,6 +140,8 @@ class FileAnalysis(BaseModel):
     estimated_cut_time_minutes: float
     complexity_score: float
     validation_issues: List[dict] = []
+    health_score: float = 100.0
+    health_status: str = "optimal"  # optimal, warning, critical
 
 
 # Cost Calculation Schemas

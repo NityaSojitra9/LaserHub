@@ -5,8 +5,9 @@ import { ErrorBoundary } from 'react-error-boundary';
 import type { FallbackProps } from 'react-error-boundary';
 import { ErrorFallback } from './components/ErrorFallback';
 import { HomePage } from './pages/HomePage';
-import { AdminPage } from './pages/AdminPage';
 import { VendorDashboardPage } from './pages/VendorDashboardPage';
+import { UserDashboardPage } from './pages/UserDashboardPage';
+import { SuperAdminPage } from './pages/SuperAdminPage';
 import { MarketplacePage } from './pages/MarketplacePage';
 import { BrowseDesignsPage } from './pages/BrowseDesignsPage';
 import { VendorsPage } from './pages/VendorsPage';
@@ -67,9 +68,8 @@ function AppContent() {
             <Route path="/design/:id" element={<DesignDetailPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
-            <Route path="/profile" element={<Navigate to="/admin" replace />} />
-            <Route path="/admin/*" element={<AdminPage />} />
-            <Route path="/super-admin/*" element={<Navigate to="/admin/sa-users" replace />} />
+            <Route path="/dashboard/*" element={<UserDashboardPage />} />
+            <Route path="/admin/*" element={<SuperAdminPage />} />
             <Route path="/vendor/dashboard/*" element={<VendorDashboardPage />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/terms" element={<TermsOfServicePage />} />

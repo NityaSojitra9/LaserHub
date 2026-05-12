@@ -81,15 +81,15 @@ export const NavUserMenu: React.FC = () => {
           </div>
           
           <div className="nav-dropdown-list">
-            <Link to="/admin/profile" className="nav-dropdown-item" onClick={() => setIsOpen(false)}>
+            <Link to="/dashboard/profile" className="nav-dropdown-item" onClick={() => setIsOpen(false)}>
               <User size={16} />
               <span>Profile</span>
             </Link>
-            <Link to="/admin/my-orders" className="nav-dropdown-item" onClick={() => setIsOpen(false)}>
+            <Link to="/dashboard/orders" className="nav-dropdown-item" onClick={() => setIsOpen(false)}>
               <Package size={16} />
               <span>My Orders</span>
             </Link>
-            <Link to="/admin/settings" className="nav-dropdown-item" onClick={() => setIsOpen(false)}>
+            <Link to="/dashboard/settings" className="nav-dropdown-item" onClick={() => setIsOpen(false)}>
               <Settings size={16} />
               <span>Settings</span>
             </Link>
@@ -98,11 +98,11 @@ export const NavUserMenu: React.FC = () => {
               <>
                 <div className="nav-dropdown-divider" />
                 <div className="nav-dropdown-section">Vendor Hub</div>
-                <Link to="/admin/dashboard" className="nav-dropdown-item" onClick={() => setIsOpen(false)}>
+                <Link to="/vendor/dashboard" className="nav-dropdown-item" onClick={() => setIsOpen(false)}>
                   <LayoutDashboard size={16} />
-                  <span>Dashboard</span>
+                  <span>Vendor Portal</span>
                 </Link>
-                <Link to="/admin/materials" className="nav-dropdown-item" onClick={() => setIsOpen(false)}>
+                <Link to="/vendor/dashboard" className="nav-dropdown-item" onClick={() => setIsOpen(false)}>
                   <Store size={16} />
                   <span>Materials</span>
                 </Link>
@@ -112,25 +112,9 @@ export const NavUserMenu: React.FC = () => {
             {userIsSuperAdmin && (
               <>
                 <div className="nav-dropdown-divider" />
-                <div className="nav-dropdown-section">
-                  <Shield size={12} style={{ marginRight: 6 }} />
-                  Platform Admin
-                </div>
-                <Link to="/admin/sa-users" className="nav-dropdown-item" onClick={() => setIsOpen(false)}>
-                  <Users size={16} />
-                  <span>User Management</span>
-                </Link>
-                <Link to="/admin/sa-vendors" className="nav-dropdown-item" onClick={() => setIsOpen(false)}>
-                  <Store size={16} />
-                  <span>Vendor Management</span>
-                </Link>
-                <Link to="/admin/sa-designs" className="nav-dropdown-item" onClick={() => setIsOpen(false)}>
-                  <ImageIcon size={16} />
-                  <span>Designs</span>
-                </Link>
-                <Link to="/admin/sa-stats" className="nav-dropdown-item" onClick={() => setIsOpen(false)}>
+                <Link to="/admin" className="nav-dropdown-item" onClick={() => setIsOpen(false)}>
                   <BarChart2 size={16} />
-                  <span>Analytics</span>
+                  <span>Admin Panel</span>
                 </Link>
               </>
             )}

@@ -300,9 +300,28 @@ export const DesignPreview3D: React.FC<DesignPreview3DProps> = ({
   // Always use the /svg endpoint for preview — it serves with Content-Disposition: inline
   const fallbackUrl = previewUrl;
 
+  const healthColor = fileAnalysis?.health_status === 'optimal' ? '#10b981' : fileAnalysis?.health_status === 'warning' ? '#f59e0b' : '#ef4444';
+
   const header = (
-    <div className="preview-header">
-      <span>{use3D && !error ? '3D Preview' : 'Design Preview'}</span>
+    <div className="preview-header" style={{ position: 'relative' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+        <span>{use3D && !error ? '3D Preview' : 'Design Preview'}</span>
+        {fileAnalysis && (
+          <div style={{ 
+            fontSize: '0.65rem', 
+            background: `${healthColor}20`, 
+            color: healthColor, 
+            padding: '2px 8px', 
+            borderRadius: 4, 
+            border: `1px solid ${healthColor}`,
+            textTransform: 'uppercase',
+            fontWeight: 'bold',
+            letterSpacing: '0.02em'
+          }}>
+            Health: {fileAnalysis.health_status}
+          </div>
+        )}
+      </div>
       <div className="preview-controls">
         <button
           className={`preview-toggle ${use3D ? 'active' : ''}`}

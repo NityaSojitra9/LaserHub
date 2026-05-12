@@ -69,41 +69,39 @@ async def _build_order_response(order: Order, db: AsyncSession) -> OrderResponse
     )
 
 
-async def get_current_admin(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)):
+async def get_current_admin(
+    token: str = Depends(oauth2_scheme), 
+    db: AsyncSession = Depends(get_db)
+):
     """Validate admin JWT token.
-
-    Accepts:
-    - Admin tokens (role=admin, email matches ADMIN_EMAIL)
-    - Vendor/super_admin user tokens (looked up in DB by email)
+    Only allows users with 'admin' or 'super_admin' role.
     """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
     try:
         payload = decode_access_token(token)
         email = payload.get("sub")
-        role = payload.get("role")
-
         if not email:
-            raise HTTPException(status_code=401, detail="Not authorized")
-
-        # Legacy admin login (role=admin in JWT)
-        if role == "admin" and email == settings.ADMIN_EMAIL:
-            return email
-
-        # User-based access: check if user is vendor or super_admin
-        if role == "user":
-            from app.models import User as UserModel
-            result = await db.execute(select(UserModel).where(UserModel.email == email))
-            user = result.scalar_one_or_none()
-            if user and user.role in ("vendor", "super_admin"):
-                return email
-            # Also allow super admin email directly
-            if email == settings.SUPER_ADMIN_EMAIL:
-                return email
-
-        raise HTTPException(status_code=401, detail="Not authorized")
-    except HTTPException:
-        raise
+            raise credentials_exception
     except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        raise credentials_exception
+
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise credentials_exception
+        
+    if user.role not in ("admin", "super_admin") and not user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to access admin resources"
+        )
+        
+    return user
 
 
 @router.post("/login", response_model=AdminToken)
