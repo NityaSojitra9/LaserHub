@@ -619,6 +619,14 @@ class VendorMaterialCreate(BaseModel):
     notes: Optional[str] = None
 
 
+class VendorMaterialUpdate(BaseModel):
+    custom_price_per_cm2_mm: Optional[float] = None
+    cut_speed_mm_min: Optional[float] = None
+    lead_time_days: Optional[float] = None
+    is_in_stock: Optional[bool] = None
+    notes: Optional[str] = None
+
+
 class VendorMaterialResponse(BaseModel):
     id: int
     vendor_id: int

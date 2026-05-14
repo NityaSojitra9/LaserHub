@@ -12,7 +12,7 @@ import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -22,9 +22,11 @@ from app.api.auth import get_current_user
 from app.models import User, Vendor, VendorMaterial, Material, VendorOrder, Order
 from app.schemas import (
     VendorCreate, VendorUpdate, VendorResponse,
-    VendorMaterialCreate, VendorMaterialResponse,
+    VendorMaterialCreate, VendorMaterialUpdate, VendorMaterialResponse,
 )
 
+from app.core.logger import get_logger
+logger = get_logger(__name__)
 
 # Vendor asset storage (profile images, GST cert, etc.)
 VENDOR_ASSETS_DIR = Path(__file__).parent.parent.parent / "uploads" / "vendor-assets"
@@ -76,40 +78,54 @@ async def get_current_vendor(
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    if user.role != "vendor" and not user.is_admin:
-        raise HTTPException(status_code=403, detail="Vendor role required")
+    try:
+        # Allow vendors, admins, and super_admins
+        is_auth_role = user.role in ("vendor", "admin", "super_admin") or user.is_admin
+        logger.info(f"get_current_vendor: email={email} role={user.role} is_admin={user.is_admin} is_auth_role={is_auth_role}")
+        
+        if not is_auth_role:
+            logger.warning(f"get_current_vendor: 403 Forbidden - Role '{user.role}' not authorized for email {email}")
+            raise HTTPException(status_code=403, detail=f"Vendor or Admin role required. Current: {user.role}")
 
-    result = await db.execute(select(Vendor).where(Vendor.user_id == user.id))
-    vendor = result.scalar_one_or_none()
-    
-    if not vendor:
-        # Auto-create a minimal vendor profile for admins so they can use vendor dashboard tools
-        # without manually going through the marketplace registration flow.
-        if user.is_admin or user.role == "super_admin":
-            shop_name = f"{user.name or 'Admin'} Shop"
+        # Fetch or auto-create vendor profile
+        result = await db.execute(select(Vendor).where(Vendor.user_id == user.id))
+        vendor = result.scalar_one_or_none()
+
+        if not vendor:
+            logger.info(f"get_current_vendor: Auto-initializing vendor profile for user {user.id} ({user.role})")
+            # Auto-generate shop name and slug
+            base_name = user.name or "Vendor"
+            shop_name = f"{base_name} Shop"
             slug = slugify(shop_name)
             
             # Ensure slug uniqueness
-            s_res = await db.execute(select(Vendor).where(Vendor.slug == slug))
-            if s_res.scalar_one_or_none():
+            slug_res = await db.execute(select(Vendor).where(Vendor.slug == slug))
+            if slug_res.scalar_one_or_none():
                 slug = f"{slug}-{user.id}"
-                
+                shop_name = f"{shop_name} #{user.id}"
+
             vendor = Vendor(
                 user_id=user.id,
                 shop_name=shop_name,
                 slug=slug,
                 is_active=True,
-                is_verified=True,
-                description="Platform admin profile",
+                is_verified=(user.role in ("admin", "super_admin") or user.is_admin),
+                description=f"Professional laser cutting services by {user.name or 'a verified vendor'}",
             )
             db.add(vendor)
             await db.commit()
             await db.refresh(vendor)
-            return vendor
-            
-        raise HTTPException(status_code=403, detail="Vendor profile not initialized")
+            logger.info(f"get_current_vendor: Profile created for user {user.id} with slug {slug}")
 
-    return vendor
+        logger.debug(f"get_current_vendor: Found vendor profile {vendor.id} for user {user.id}")
+        return vendor
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"get_current_vendor: Unexpected error: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error initializing vendor profile: {str(e)}")
 
 
 # === Vendor Registration & Profile ===
@@ -192,14 +208,6 @@ async def list_vendors(
     return [_vendor_to_response(v) for v in vendors]
 
 
-@router.get("/{slug}", response_model=VendorResponse)
-async def get_vendor(slug: str, db: AsyncSession = Depends(get_db)):
-    """Get vendor profile by slug"""
-    result = await db.execute(select(Vendor).where(Vendor.slug == slug))
-    vendor = result.scalar_one_or_none()
-    if not vendor:
-        raise HTTPException(status_code=404, detail="Vendor not found")
-    return _vendor_to_response(vendor)
 
 
 @router.put("/profile", response_model=VendorResponse)
@@ -498,6 +506,62 @@ async def add_vendor_material(
     )
 
 
+@router.put("/materials/{vm_id}", response_model=VendorMaterialResponse)
+async def update_vendor_material(
+    vm_id: int,
+    mat_data: VendorMaterialUpdate,
+    vendor: Vendor = Depends(get_current_vendor),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update a material in vendor's catalog"""
+    result = await db.execute(
+        select(VendorMaterial, Material.name)
+        .join(Material, VendorMaterial.material_id == Material.id)
+        .where(VendorMaterial.id == vm_id, VendorMaterial.vendor_id == vendor.id)
+    )
+    row = result.first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Vendor material not found")
+    
+    vm, name = row
+    for field, value in mat_data.model_dump(exclude_unset=True).items():
+        setattr(vm, field, value)
+    
+    await db.commit()
+    await db.refresh(vm)
+
+    return VendorMaterialResponse(
+        id=vm.id,
+        vendor_id=vm.vendor_id,
+        material_id=vm.material_id,
+        material_name=name,
+        custom_price_per_cm2_mm=vm.custom_price_per_cm2_mm,
+        thickness_mm=vm.thickness_mm,
+        is_in_stock=vm.is_in_stock,
+        cut_speed_mm_min=vm.cut_speed_mm_min,
+        lead_time_days=vm.lead_time_days,
+    )
+
+
+@router.delete("/materials/{vm_id}")
+async def delete_vendor_material(
+    vm_id: int,
+    vendor: Vendor = Depends(get_current_vendor),
+    db: AsyncSession = Depends(get_db)
+):
+    """Remove a material from vendor's catalog"""
+    result = await db.execute(
+        select(VendorMaterial).where(VendorMaterial.id == vm_id, VendorMaterial.vendor_id == vendor.id)
+    )
+    vm = result.scalar_one_or_none()
+    if not vm:
+        raise HTTPException(status_code=404, detail="Vendor material not found")
+    
+    await db.delete(vm)
+    await db.commit()
+    return {"status": "removed"}
+
+
 # === Vendor Orders ===
 
 @router.get("/orders", response_model=list)
@@ -667,6 +731,32 @@ async def get_vendor_analytics(
             )).scalar() or 0
         }
     }
+
+
+@router.get("/{id_or_slug}", response_model=VendorResponse)
+async def get_vendor(id_or_slug: str, db: AsyncSession = Depends(get_db)):
+    """Get vendor profile by ID, User ID, or slug"""
+    # Try ID first if it looks like an integer
+    if id_or_slug.isdigit():
+        val = int(id_or_slug)
+        # Try as Vendor ID
+        result = await db.execute(select(Vendor).where(Vendor.id == val))
+        vendor = result.scalar_one_or_none()
+        if vendor:
+            return _vendor_to_response(vendor)
+            
+        # Try as User ID
+        result = await db.execute(select(Vendor).where(Vendor.user_id == val))
+        vendor = result.scalar_one_or_none()
+        if vendor:
+            return _vendor_to_response(vendor)
+            
+    # Fallback to slug
+    result = await db.execute(select(Vendor).where(Vendor.slug == id_or_slug))
+    vendor = result.scalar_one_or_none()
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    return _vendor_to_response(vendor)
 
 
 

@@ -1,36 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Sun, Moon, Zap } from 'lucide-react';
+import { Menu, X, Zap } from 'lucide-react';
 import { NavLinks } from './NavLinks';
 import { NavUserMenu } from './NavUserMenu';
 import { CurrencySwitcher } from '../CurrencySwitcher';
+import { useAppStore } from '../../store/appStore';
 import './Navbar.css';
 
 export const Navbar: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    const saved = localStorage.getItem('theme');
-    return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  });
   const location = useLocation();
 
   // Close mobile menu on route change
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
-
-  // Sync dark mode class and storage
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark-mode');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark-mode');
-      localStorage.setItem('theme', 'light');
-    }
-  }, [isDarkMode]);
-
-  const toggleDarkMode = () => setIsDarkMode(prev => !prev);
 
   return (
     <nav className="navbar">
@@ -49,13 +33,6 @@ export const Navbar: React.FC = () => {
             <CurrencySwitcher />
           </div>
           
-          <button 
-            className="nav-theme-toggle" 
-            onClick={toggleDarkMode}
-            aria-label="Toggle theme"
-          >
-            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
 
           <NavUserMenu />
 

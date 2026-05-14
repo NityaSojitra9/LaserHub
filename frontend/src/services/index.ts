@@ -838,6 +838,15 @@ export const vendorApi = {
     return response.data;
   },
 
+  updateVendorMaterial: async (vmId: number, data: any): Promise<VendorMaterialItem> => {
+    const response = await api.put<VendorMaterialItem>(`/vendors/materials/${vmId}`, data);
+    return response.data;
+  },
+
+  deleteVendorMaterial: async (vmId: number): Promise<void> => {
+    await api.delete(`/vendors/materials/${vmId}`);
+  },
+
   getVendorStats: async (): Promise<any> => {
     const response = await api.get('/vendors/dashboard/stats');
     return response.data;
