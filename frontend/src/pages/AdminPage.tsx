@@ -1,50 +1,38 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard,
   Package,
-  Layers,
-  CreditCard,
-  BarChart2,
-  User as UserIcon,
-  LogOut,
-  ArrowLeft,
-  Menu,
   X,
   Mail,
   Calendar,
   Loader2,
   Star,
   Edit2,
-  Save,
   Trash2,
   Bell,
-  Settings,
   Image as ImageIcon,
-  Users,
-  Store,
-  BarChart3,
-  Palette,
   FileText,
-  MapPin,
-  Receipt,
-  type LucideIcon,
+  Plus,
+  Check,
+  CheckCircle2,
+  CreditCard,
 } from 'lucide-react';
-import { AdminDashboard } from '../components/AdminDashboard';
+import { DashboardLayout } from '../components/DashboardLayout';
 import { OrderKanban } from '../components/OrderKanban';
 import { QuoteBuilder } from '../components/QuoteBuilder';
 import { MaterialsInventory } from './MaterialsInventory';
 import { BusinessReports } from './BusinessReports';
+import { NotFoundPage } from './NotFoundPage';
 import { Invoices as InvoicesPage } from './admin/Invoices';
-import { BillingAddressBook } from '../components/billing/BillingAddressBook';
-import { CustomerInvoiceList } from '../components/invoicing/CustomerInvoiceList';
 import { PaymentSettings } from '../components/PaymentSettings';
 import { CustomersCRM } from '../components/CustomersCRM';
 import { TeamPanel } from '../components/TeamPanel';
 import { ReviewModal } from '../components/ReviewModal';
 import OrderTrackingPanel from '../components/OrderTrackingPanel';
-import { EmptyState } from '../components/ui';
+import { Button, EmptyState } from '../components/ui';
 import { Skeleton } from '../components/Skeleton';
+import { BillingAddressBook } from '../components/billing/BillingAddressBook';
+import { CustomerInvoiceList } from '../components/invoicing/CustomerInvoiceList';
 import { VendorShopManager } from '../components/vendor/VendorShopManager';
 import { VendorDashboard } from '../components/VendorDashboard';
 import { useAuthStore } from '../store/authStore';
@@ -54,6 +42,7 @@ import { resolveMediaUrl } from '../services/api';
 import { toast } from 'sonner';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { formatPrice } from '../utils/formatPrice';
+
 
 // Super admin tab components (imported from SuperAdminPage module)
 // We re-export those sub-tab functions so they're available here.
@@ -92,17 +81,13 @@ type TabKey =
   | 'sa-stats'
   | 'storefront';
 
-interface NavItem {
-  key: TabKey;
-  label: string;
-  icon: LucideIcon;
-}
+
 
 // ============================================================================
 // Profile Tab Content
 // ============================================================================
 function ProfileTabContent() {
-  const { user, logout, setUser } = useAuthStore();
+  const { user, setUser } = useAuthStore();
   const navigate = useNavigate();
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(user?.name || '');
@@ -141,10 +126,7 @@ function ProfileTabContent() {
     toast.success('Name updated');
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
+
 
   const getInitials = (name: string) =>
     name.split(' ').map((p) => p[0]).join('').toUpperCase().slice(0, 2);
@@ -638,6 +620,17 @@ function MyOrdersTabContent() {
                         >
                           {reorderingId === order.id ? 'Reordering…' : 'Reorder'}
                         </button>
+                        {['pending_payment', 'pending'].includes(order.status) && (
+                          <button
+                            className="sa-btn sa-btn--primary-sm"
+                            onClick={() => toast.info('Payment app not added. Please contact support for offline payment.', {
+                              icon: <CreditCard size={14} />,
+                              duration: 5000
+                            })}
+                          >
+                            Pay Now
+                          </button>
+                        )}
                         {order.status === 'completed' && !reviewedOrders.has(order.id) && (
                           <button
                             className="sa-btn sa-btn--ghost-sm"
@@ -646,6 +639,7 @@ function MyOrdersTabContent() {
                             <Star size={14} /> Review
                           </button>
                         )}
+
                         {reviewedOrders.has(order.id) && (
                           <span className="sa-badge sa-badge--success">Reviewed</span>
                         )}
@@ -1063,7 +1057,7 @@ function SuperAdminTabWrapper({ tab }: { tab: string }) {
 // ============================================================================
 // Main Unified Admin Page
 // ============================================================================
-import { DashboardLayout } from '../components/DashboardLayout';
+
 
 export const AdminPage: React.FC = () => {
   useDocumentTitle('Dashboard — LaserHub');
@@ -1073,7 +1067,11 @@ export const AdminPage: React.FC = () => {
   const location = useLocation();
 
   const pathParts = location.pathname.split('/').filter(Boolean);
-  const tabParam = (pathParts[pathParts.length - 1] || null) as TabKey | null;
+  // If we are at exactly /admin or /dashboard, tabParam should be null to trigger redirect
+  const isBaseRoute = pathParts.length === 1 && (pathParts[0] === 'admin' || pathParts[0] === 'dashboard');
+  const isVendorBase = pathParts.length === 2 && pathParts[0] === 'vendor' && pathParts[1] === 'dashboard';
+  
+  const tabParam = (isBaseRoute || isVendorBase) ? null : (pathParts[pathParts.length - 1] as TabKey);
 
   useEffect(() => {
     checkAuth();
@@ -1088,26 +1086,28 @@ export const AdminPage: React.FC = () => {
     }
 
     // Tab authorization helper
-    const isAuthorized = (t: TabKey) => {
-      if (!user) return false;
+    const isAuthorized = (t: TabKey | null) => {
+      if (!user || !t) return false;
+      const validTabs: TabKey[] = [
+        'profile', 'my-orders', 'my-designs', 'my-invoices', 'billing-addresses', 'my-settings',
+        'dashboard', 'orders', 'quotes', 'customers', 'team', 'materials-inventory', 'reports', 'invoices', 'payments',
+        'sa-overview', 'sa-users', 'sa-vendors', 'sa-designs', 'sa-orders', 'sa-stats', 'storefront'
+      ];
+      if (!validTabs.includes(t)) return false;
+
       if (['profile', 'my-orders', 'my-designs', 'billing-addresses', 'my-settings', 'my-invoices'].includes(t)) return true;
       if (['dashboard', 'orders', 'quotes', 'customers', 'team', 'materials-inventory', 'reports', 'invoices', 'payments'].includes(t)) return isVendor(user);
       if (t.startsWith('sa-') || t === 'storefront') return isSuperAdmin(user);
       return true;
     };
 
-    // If no tab specified, redirect to default
-    if (!tabParam) {
-      const target = isSuperAdmin(user) ? 'sa-overview' : (isVendor(user) ? 'dashboard' : 'profile');
-      navigate(`/dashboard/${target}`, { replace: true });
-      return;
-    }
+    const basePath = location.pathname.startsWith('/vendor/dashboard') ? '/vendor/dashboard' : (location.pathname.startsWith('/admin') ? '/admin' : '/dashboard');
 
     // If current tab is unauthorized, redirect to default
-    if (!isAuthorized(tabParam)) {
-      console.warn(`[AdminPage] Unauthorized access to tab: ${tabParam}. Redirecting.`);
+    if (!tabParam || !isAuthorized(tabParam)) {
+      console.warn(`[AdminPage] Unauthorized or invalid access to tab: ${tabParam}. Redirecting.`);
       const target = isSuperAdmin(user) ? 'sa-overview' : (isVendor(user) ? 'dashboard' : 'profile');
-      navigate(`/dashboard/${target}`, { replace: true });
+      navigate(`${basePath}/${target}`, { replace: true });
     }
   }, [user, tabParam, navigate, hasHydrated, authLoading]);
 
@@ -1118,6 +1118,13 @@ export const AdminPage: React.FC = () => {
   const renderContent = (tab: TabKey) => {
     // Proactive permission check
     const isAuthorized = (t: TabKey) => {
+      const validTabs: TabKey[] = [
+        'profile', 'my-orders', 'my-designs', 'my-invoices', 'billing-addresses', 'my-settings',
+        'dashboard', 'orders', 'quotes', 'customers', 'team', 'materials-inventory', 'reports', 'invoices', 'payments',
+        'sa-overview', 'sa-users', 'sa-vendors', 'sa-designs', 'sa-orders', 'sa-stats', 'storefront'
+      ];
+      if (!validTabs.includes(t)) return false;
+
       if (!user) return false;
       if (['profile', 'my-orders', 'my-designs', 'billing-addresses', 'my-settings', 'my-invoices'].includes(t)) return true;
       if (['dashboard', 'orders', 'quotes', 'customers', 'team', 'materials-inventory', 'reports', 'invoices', 'payments'].includes(t)) return isVendor(user);
@@ -1143,7 +1150,8 @@ export const AdminPage: React.FC = () => {
       case 'materials-inventory': 
         return <MaterialsInventory />;
       case 'reports': 
-        return <BusinessReports />;
+        return <BusinessReports vendorMode={isVendor(user) && !isSuperAdmin(user)} />;
+
       case 'invoices': 
         return <InvoicesPage />;
       case 'payments': 
@@ -1162,9 +1170,22 @@ export const AdminPage: React.FC = () => {
         return <SuperAdminTabWrapper tab="stats" />;
       case 'storefront': 
         return <VendorShopManager />;
+      case 'my-orders':
+        return <MyOrdersTabContent />;
+      case 'my-designs':
+        return <MyDesignsTabContent />;
+      case 'my-settings':
+        return <MySettingsTabContent />;
+      case 'billing-addresses':
+        return <BillingAddressBook />;
+      case 'my-invoices':
+        return <CustomerInvoiceList />;
       case 'profile':
-      default: 
         return <ProfileTabContent />;
+      default:
+        return <NotFoundPage />;
+
+
     }
   };
 

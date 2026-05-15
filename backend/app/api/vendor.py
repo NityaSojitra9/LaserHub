@@ -209,6 +209,23 @@ async def list_vendors(
 
 
 
+@router.get("/me", response_model=VendorResponse)
+async def get_my_vendor_profile(
+    vendor: Vendor = Depends(get_current_vendor),
+):
+    """Get the authenticated user's vendor profile"""
+    return _vendor_to_response(vendor)
+
+
+@router.put("/me", response_model=VendorResponse)
+async def update_my_vendor_profile(
+    update_data: VendorUpdate,
+    vendor: Vendor = Depends(get_current_vendor),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update the authenticated user's vendor profile"""
+    return await update_vendor_profile(update_data, vendor, db)
+
 
 @router.put("/profile", response_model=VendorResponse)
 async def update_vendor_profile(
@@ -369,6 +386,7 @@ def _vendor_to_response(vendor: Vendor) -> VendorResponse:
         is_verified=vendor.is_verified,
         avg_turnaround_days=vendor.avg_turnaround_days,
         min_order_amount=vendor.min_order_amount,
+        shipping_policy=vendor.shipping_policy,
         specialties=specialties,
         created_at=vendor.created_at,
         phone_country_code=getattr(vendor, "phone_country_code", None),
@@ -731,6 +749,147 @@ async def get_vendor_analytics(
             )).scalar() or 0
         }
     }
+
+
+@router.get("/dashboard/financials")
+async def get_vendor_financials(
+    vendor: Vendor = Depends(get_current_vendor),
+    db: AsyncSession = Depends(get_db)
+):
+    """Aggregate revenue/profit/cost metrics for the vendor dashboard."""
+    now = datetime.utcnow()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start = today_start - timedelta(days=7)
+    month_start = today_start.replace(day=1)
+    year_start = today_start.replace(month=1, day=1)
+    thirty_days_ago = today_start - timedelta(days=29)
+
+    async def _sum_count(start):
+        q = select(
+            func.sum(VendorOrder.vendor_cost),
+            func.count(VendorOrder.id),
+        ).where(VendorOrder.vendor_id == vendor.id, VendorOrder.created_at >= start)
+        r = (await db.execute(q)).one()
+        return float(r[0] or 0), int(r[1] or 0)
+
+    today_rev, today_count = await _sum_count(today_start)
+    week_rev, week_count = await _sum_count(week_start)
+    month_rev, month_count = await _sum_count(month_start)
+    year_rev, year_count = await _sum_count(year_start)
+
+    # Totals across all time for this vendor
+    totals_q = select(
+        func.sum(VendorOrder.vendor_cost),
+        func.count(VendorOrder.id),
+    ).where(VendorOrder.vendor_id == vendor.id)
+    trow = (await db.execute(totals_q)).one()
+    total_rev = float(trow[0] or 0)
+    total_orders = int(trow[1] or 0)
+
+    # Note: VendorOrder currently doesn't store COGS (material_cost etc.) 
+    # but we can join with Order to get them.
+    cogs_q = select(
+        func.sum(Order.material_cost),
+        func.sum(Order.laser_time_cost),
+        func.sum(Order.energy_cost),
+    ).join(VendorOrder, Order.id == VendorOrder.order_id).where(VendorOrder.vendor_id == vendor.id)
+    crow = (await db.execute(cogs_q)).one()
+    total_mat = float(crow[0] or 0)
+    total_laser = float(crow[1] or 0)
+    total_energy = float(crow[2] or 0)
+    
+    total_cogs = total_mat + total_laser + total_energy
+    profit = total_rev - total_cogs
+    profit_margin_pct = (profit / total_rev * 100.0) if total_rev else 0.0
+    avg_order_value = (total_rev / total_orders) if total_orders else 0.0
+
+    # Top customers for this vendor
+    cust_q = (
+        select(
+            Order.customer_email.label("email"),
+            Order.customer_name.label("name"),
+            func.count(Order.id).label("order_count"),
+            func.sum(VendorOrder.vendor_cost).label("total_spent"),
+        )
+        .join(VendorOrder, Order.id == VendorOrder.order_id)
+        .where(VendorOrder.vendor_id == vendor.id)
+        .group_by(Order.customer_email, Order.customer_name)
+        .order_by(desc("total_spent"))
+        .limit(10)
+    )
+    top_customers = [
+        {
+            "name": r.name,
+            "email": r.email,
+            "order_count": int(r.order_count or 0),
+            "total_spent": float(r.total_spent or 0),
+        }
+        for r in (await db.execute(cust_q)).all()
+    ]
+
+    # Revenue timeline for this vendor
+    tl_q = (
+        select(
+            func.strftime("%Y-%m-%d", VendorOrder.created_at).label("date"),
+            func.sum(VendorOrder.vendor_cost).label("revenue"),
+        )
+        .where(VendorOrder.vendor_id == vendor.id, VendorOrder.created_at >= thirty_days_ago)
+        .group_by("date")
+        .order_by("date")
+    )
+    revenue_timeline = [
+        {"date": r.date, "revenue": float(r.revenue or 0)}
+        for r in (await db.execute(tl_q)).all()
+    ]
+
+    # Popular materials for this vendor
+    mat_q = (
+        select(
+            Order.material_name.label("name"),
+            func.count(Order.id).label("count"),
+        )
+        .join(VendorOrder, Order.id == VendorOrder.order_id)
+        .where(VendorOrder.vendor_id == vendor.id)
+        .group_by(Order.material_name)
+        .order_by(desc("count"))
+        .limit(5)
+    )
+    popular_materials = [
+        {"name": r.name, "count": int(r.count or 0)}
+        for r in (await db.execute(mat_q)).all()
+    ]
+
+    return {
+        "revenue": {
+            "today": today_rev,
+            "week": week_rev,
+            "month": month_rev,
+            "year": year_rev,
+        },
+        "profit": profit,
+        "profit_margin_pct": round(profit_margin_pct, 2),
+        "cogs": {
+            "total": total_cogs,
+            "material": total_mat,
+            "laser": total_laser,
+            "energy": total_energy,
+            "by_material": [], # Simplified for now
+        },
+        "orders_count": {
+            "today": today_count,
+            "week": week_count,
+            "month": month_count,
+            "year": year_count,
+            "total": total_orders,
+        },
+        "avg_order_value": avg_order_value,
+        "top_customers": top_customers,
+        "revenue_timeline": revenue_timeline,
+        "popular_materials": popular_materials,
+        "payment_methods": [],
+    }
+
+
 
 
 @router.get("/{id_or_slug}", response_model=VendorResponse)

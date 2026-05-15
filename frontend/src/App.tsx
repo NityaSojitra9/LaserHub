@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { BrowserRouter, Routes, Route, Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import React from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import type { FallbackProps } from 'react-error-boundary';
@@ -25,13 +25,14 @@ import { TrackOrderPage } from './pages/TrackOrderPage';
 import { MaterialWizardPage } from './pages/MaterialWizardPage';
 import { MaterialComparePage } from './pages/MaterialComparePage';
 import { SamplePackPage } from './pages/SamplePackPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { VerifyEmailPage } from './pages/VerifyEmailPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 import { BuyerDashboard } from './pages/BuyerDashboard';
 import { useAuthStore } from './store/authStore';
-import { isSuperAdmin, isVendor } from './utils/roles';
-import { useAppStore } from './store/appStore';
 import { useCurrencyStore } from './store/currencyStore';
 import { Navbar, NotificationPrompt } from './components';
-import { useEscapeKey } from './hooks/useEscapeKey';
 import { Toaster } from 'sonner';
 import { Github } from 'lucide-react';
 import './App.css';
@@ -50,7 +51,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 };
 
 function AppContent() {
-  const { checkAuth, user } = useAuthStore();
+  const { checkAuth } = useAuthStore();
   const { detect: detectCurrency } = useCurrencyStore();
   const location = useLocation();
 
@@ -110,6 +111,9 @@ function AppContent() {
               <Route path="/design/:id" element={<DesignDetailPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/verify" element={<VerifyEmailPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/privacy" element={<PrivacyPolicyPage />} />
               <Route path="/terms" element={<TermsOfServicePage />} />
               <Route path="/refund-policy" element={<RefundPolicyPage />} />
@@ -121,7 +125,9 @@ function AppContent() {
               <Route path="/material-wizard" element={<MaterialWizardPage />} />
               <Route path="/materials/compare" element={<MaterialComparePage />} />
               <Route path="/samples" element={<SamplePackPage />} />
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
+
           </div>
         </ErrorBoundary>
       </main>

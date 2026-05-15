@@ -4,11 +4,14 @@ import { Menu, X, Zap } from 'lucide-react';
 import { NavLinks } from './NavLinks';
 import { NavUserMenu } from './NavUserMenu';
 import { CurrencySwitcher } from '../CurrencySwitcher';
-import { useAppStore } from '../../store/appStore';
+import { useAuthStore } from '../../store/authStore';
+import { isSuperAdmin, isVendor } from '../../utils/roles';
 import './Navbar.css';
 
 export const Navbar: React.FC = () => {
+  const { user } = useAuthStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
 
   // Close mobile menu on route change
@@ -16,11 +19,20 @@ export const Navbar: React.FC = () => {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
 
+  // Track scroll for navbar shadow
+  useEffect(() => {
+    const handleScroll = () => setIsScrolled(window.scrollY > 10);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const logoLink = user ? (isSuperAdmin(user) ? '/admin/sa-overview' : isVendor(user) ? '/vendor/dashboard/dashboard' : '/') : '/';
+
   return (
-    <nav className="navbar">
+    <nav className={`navbar${isScrolled ? ' scrolled' : ''}`}>
       <div className="nav-container">
         <div className="nav-main">
-          <Link to="/" className="nav-brand">
+          <Link to={logoLink} className="nav-brand">
             <Zap className="nav-logo-icon" fill="var(--color-primary)" />
             <span>LaserHub</span>
           </Link>
@@ -32,7 +44,20 @@ export const Navbar: React.FC = () => {
           <div className="nav-links-desktop">
             <CurrencySwitcher />
           </div>
-          
+
+          {user && isSuperAdmin(user) && (
+            <div className="nav-role-switches">
+              <Link to="/dashboard/profile" className="nav-role-btn" title="Buyer View">
+                <Zap size={18} />
+              </Link>
+              <Link to="/vendor/dashboard/dashboard" className="nav-role-btn" title="Seller View">
+                <Zap size={18} />
+              </Link>
+              <Link to="/admin/sa-overview" className="nav-role-btn" title="Admin View">
+                <Zap size={18} />
+              </Link>
+            </div>
+          )}
 
           <NavUserMenu />
 

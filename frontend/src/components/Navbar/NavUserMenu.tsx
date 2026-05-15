@@ -1,15 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
-  User, 
   LogOut, 
   LayoutDashboard, 
   Package, 
-  Users, 
   Store, 
   Image as ImageIcon, 
   BarChart2, 
-  Shield,
   Settings
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
@@ -87,10 +84,10 @@ export const NavUserMenu: React.FC = () => {
               onClick={() => setIsOpen(false)}
             >
               <LayoutDashboard size={16} />
-              <span>Dashboard</span>
+              <span>{userIsSuperAdmin ? "Admin Dashboard" : userIsVendor ? "Seller Dashboard" : "My Projects"}</span>
             </Link>
             
-            {!userIsVendor && (
+            {(userIsSuperAdmin || !userIsVendor) && (
               <Link to="/dashboard/my-orders" className="nav-dropdown-item" onClick={() => setIsOpen(false)}>
                 <Package size={16} />
                 <span>My Orders</span>
@@ -106,7 +103,7 @@ export const NavUserMenu: React.FC = () => {
               <span>Settings</span>
             </Link>
 
-            {userIsVendor && !userIsSuperAdmin && (
+            {(userIsVendor || userIsSuperAdmin) && (
               <>
                 <div className="nav-dropdown-divider" />
                 <div className="nav-dropdown-section">Shop Management</div>

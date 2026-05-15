@@ -10,20 +10,20 @@ import {
   LogOut, 
   Menu, 
   X,
-  User as UserIcon,
   Store,
-  ShoppingCart,
   BarChart2,
   Layers,
   Bell,
   Search,
-  CheckCircle2,
   Users,
   Shield
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import { formatRole, isVendor, isSuperAdmin } from '../utils/roles';
+import { isVendor, isSuperAdmin } from '../utils/roles';
+import { notificationsApi } from '../services';
+import { NavUserMenu } from '.';
 import '../styles/dashboard-new.css';
+import './Navbar/Navbar.css';
 
 interface NavItem {
   key: string;
@@ -45,9 +45,20 @@ const VENDOR_NAV: NavItem[] = [
   { key: 'overview', label: 'Mission Control', icon: BarChart2, path: '/vendor/dashboard/dashboard' },
   { key: 'orders', label: 'Fulfillment', icon: Package, path: '/vendor/dashboard/orders' },
   { key: 'catalog', label: 'Shop Catalog', icon: Layers, path: '/vendor/dashboard/materials-inventory' },
+  { key: 'customers', label: 'Customers', icon: Users, path: '/vendor/dashboard/customers' },
+  { key: 'reports', label: 'Reports', icon: Receipt, path: '/vendor/dashboard/reports' },
   { key: 'storefront', label: 'My Storefront', icon: Store, path: '/vendor/dashboard/storefront' },
   { key: 'team', label: 'Team', icon: Users, path: '/vendor/dashboard/team' },
   { key: 'settings', label: 'Shop Settings', icon: Settings, path: '/vendor/dashboard/my-settings' },
+];
+
+const ADMIN_NAV: NavItem[] = [
+  { key: 'overview', label: 'Admin Overview', icon: LayoutDashboard, path: '/admin/sa-overview' },
+  { key: 'users', label: 'System Users', icon: Users, path: '/admin/sa-users' },
+  { key: 'vendors', label: 'Partner Shops', icon: Store, path: '/admin/sa-vendors' },
+  { key: 'orders', label: 'Global Orders', icon: Package, path: '/admin/sa-orders' },
+  { key: 'stats', label: 'System Stats', icon: BarChart2, path: '/admin/sa-stats' },
+  { key: 'settings', label: 'Admin Settings', icon: Settings, path: '/admin/my-settings' },
 ];
 
 export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -56,6 +67,8 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
   const navigate = useNavigate();
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -63,13 +76,42 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Notification Polling
+  useEffect(() => {
+    if (!user) return;
+    
+    const fetchNotifications = async () => {
+      try {
+        const data = await notificationsApi.list();
+        setNotifications(data);
+      } catch (err) {
+        console.error('Failed to fetch notifications');
+      }
+    };
+
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000); // 30s polling
+    return () => clearInterval(interval);
+  }, [user]);
+
   if (!user) return null;
+
+  const unreadCount = notifications.filter(n => !n.is_read).length;
+
+  const handleMarkRead = async (id: number) => {
+    try {
+      await notificationsApi.markAsRead(id);
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+    } catch (err) {
+      console.error('Failed to mark notification as read');
+    }
+  };
 
   const userIsVendor = isVendor(user);
   const userIsSuperAdmin = isSuperAdmin(user);
   
   // Choose navigation based on role
-  const navItems = userIsVendor ? VENDOR_NAV : CUSTOMER_NAV;
+  const navItems = userIsSuperAdmin ? ADMIN_NAV : (userIsVendor ? VENDOR_NAV : CUSTOMER_NAV);
   
   const handleLogout = () => {
     logout();
@@ -81,12 +123,14 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
     return location.pathname.startsWith(path);
   };
 
+  const logoLink = userIsSuperAdmin ? '/admin/sa-overview' : userIsVendor ? '/vendor/dashboard/dashboard' : '/dashboard/profile';
+
   return (
     <div className={`dash-container ${userIsSuperAdmin ? 'theme-admin' : userIsVendor ? 'theme-vendor' : 'theme-customer'}`}>
       {/* Sidebar */}
       <aside className={`dash-sidebar ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="dash-sidebar-header">
-          <Link to="/" className="dash-logo">
+          <Link to={logoLink} className="dash-logo">
             <div className="dash-logo-icon">L</div>
             <span className="dash-logo-text">LaserHub</span>
           </Link>
@@ -166,14 +210,56 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
               <Search size={16} />
               <input type="text" placeholder="Search orders, designs..." />
             </div>
-            <button className="dash-icon-btn">
-              <Bell size={20} />
-              <div className="notification-dot" />
-            </button>
+            <div className="dash-notifications-wrapper">
+              <button 
+                className={`dash-icon-btn ${showNotifications ? 'active' : ''}`}
+                onClick={() => setShowNotifications(!showNotifications)}
+              >
+                <Bell size={20} />
+                {unreadCount > 0 && <div className="notification-dot">{unreadCount}</div>}
+              </button>
+
+              {showNotifications && (
+                <div className="dash-notifications-dropdown">
+                  <div className="dash-notifications-header">
+                    <h3>Notifications</h3>
+                    {unreadCount > 0 && <span>{unreadCount} unread</span>}
+                  </div>
+                  <div className="dash-notifications-list">
+                    {notifications.length === 0 ? (
+                      <div className="dash-no-notifications">
+                        <Bell size={24} />
+                        <p>No notifications yet</p>
+                      </div>
+                    ) : (
+                      notifications.map(n => (
+                        <div 
+                          key={n.id} 
+                          className={`dash-notification-item ${n.is_read ? 'read' : 'unread'}`}
+                          onClick={() => {
+                            if (!n.is_read) handleMarkRead(n.id);
+                            if (n.link) navigate(n.link);
+                            setShowNotifications(false);
+                          }}
+                        >
+                          <div className="notification-item-dot" />
+                          <div className="notification-item-content">
+                            <p className="notification-item-title">{n.title}</p>
+                            <p className="notification-item-msg">{n.message}</p>
+                            <span className="notification-item-time">
+                              {new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="dash-header-user">
-              <div className="dash-avatar-xs">
-                {user.name[0]}
-              </div>
+              <NavUserMenu />
             </div>
           </div>
         </header>

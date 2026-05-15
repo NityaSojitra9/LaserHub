@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { CreditCard, Mail, User, MapPin, AlertCircle, LogIn, Info } from 'lucide-react';
+import { CreditCard, Mail, User, MapPin, AlertCircle, LogIn, Info, Loader2 } from 'lucide-react';
 import { useAppStore } from '../store';
 import { ordersApi, paymentApi, addressesApi, type SavedAddress } from '../services';
 import { useAuthStore } from '../store/authStore';
@@ -399,12 +399,10 @@ export const OrderForm: React.FC<OrderFormProps> = ({ onSuccess }) => {
           </div>
         ) : null}
 
-        {!isValidStripeKey(STRIPE_KEY) && !razorpayConfigured && (
           <div className="payment-unavailable">
             <AlertCircle size={16} />
-            <span>No payment gateway is configured. Please contact support.</span>
+            <span>Payment app not added. Please contact support for offline payment options.</span>
           </div>
-        )}
       </div>
     );
   }

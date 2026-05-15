@@ -57,7 +57,14 @@ export const VendorShopManager: React.FC = () => {
   const loadProfile = async () => {
     try {
       const { data } = await api.get('/vendors/me');
-      setProfile(data);
+      // Normalize null values to empty strings for controlled inputs
+      const normalized = { ...data };
+      for (const key in normalized) {
+        if (normalized[key] === null) {
+          normalized[key] = '';
+        }
+      }
+      setProfile(normalized);
     } catch (error) {
       toast.error('Failed to load shop profile');
     } finally {

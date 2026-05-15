@@ -188,6 +188,15 @@ class OrderCreate(BaseModel):
     vendor_id: Optional[int] = None
 
 
+class SamplePackOrderRequest(BaseModel):
+    """Request schema for sample pack orders"""
+    customer_name: str
+    customer_email: EmailStr
+    shipping_address: str
+    amount: float = 299.0
+
+
+
 class OrderResponse(BaseModel):
     """Order response schema"""
     id: int
@@ -582,6 +591,7 @@ class VendorResponse(BaseModel):
     is_verified: bool
     avg_turnaround_days: float
     min_order_amount: float
+    shipping_policy: Optional[str] = None
     specialties: Optional[List[str]] = None
     created_at: datetime
 

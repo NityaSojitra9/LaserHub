@@ -374,3 +374,128 @@
 .dash-animate {
   animation: animate-in 0.3s ease-out forwards;
 }
+
+/* Notifications Dropdown */
+.dash-notifications-wrapper {
+  position: relative;
+}
+
+.dash-notifications-dropdown {
+  position: absolute;
+  top: calc(100% + 15px);
+  right: -50px;
+  width: 320px;
+  background: #1e293b;
+  border: 1px solid var(--dash-border);
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  overflow: hidden;
+  animation: animate-in 0.2s ease-out;
+}
+
+.dash-notifications-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--dash-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dash-notifications-header h3 {
+  font-size: 0.95rem;
+  margin: 0;
+  font-weight: 700;
+}
+
+.dash-notifications-header span {
+  font-size: 0.75rem;
+  color: var(--dash-accent);
+  font-weight: 600;
+}
+
+.dash-notifications-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.dash-no-notifications {
+  padding: 3rem 2rem;
+  text-align: center;
+  color: var(--dash-text-secondary);
+}
+
+.dash-no-notifications p {
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.dash-notification-item {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--dash-border);
+  display: flex;
+  gap: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  position: relative;
+}
+
+.dash-notification-item:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.dash-notification-item.unread {
+  background: rgba(14, 165, 233, 0.03);
+}
+
+.notification-item-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--dash-accent);
+  border-radius: 50%;
+  margin-top: 5px;
+  flex-shrink: 0;
+  opacity: 0;
+}
+
+.dash-notification-item.unread .notification-item-dot {
+  opacity: 1;
+}
+
+.notification-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.notification-item-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  margin: 0 0 0.25rem;
+}
+
+.notification-item-msg {
+  font-size: 0.8rem;
+  color: var(--dash-text-secondary);
+  margin: 0 0 0.5rem;
+  line-height: 1.4;
+}
+
+.notification-item-time {
+  font-size: 0.7rem;
+  color: var(--dash-text-secondary);
+  font-weight: 500;
+}
+
+.dash-icon-btn .notification-dot {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  color: white;
+  top: -8px;
+  right: -8px;
+}
+
